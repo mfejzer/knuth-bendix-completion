@@ -1,3 +1,4 @@
+module KnuthBendixCompletion where
 
 data Term = Func String [Term] | Var String
     deriving (Eq, Ord, Read, Show)
@@ -55,31 +56,9 @@ superpose (ReductionRule rule) (ReductionRules (r:rules)) (Axioms axioms) =
 findCriticalPair :: ReductionRule -> ReductionRule -> Axioms -> Axioms
 findCriticalPair (ReductionRule (termA,_)) (ReductionRule (termB,_)) axioms = axioms
 
---remove from here    
---tmp ready, try to change list in reduce to single parameter
-reduceTerm2 :: ReductionRule -> Term -> Term
-reduceTerm2 (ReductionRule (Func ruleName ruleArgs,result)) (Func name args) =
-    reduce (ReductionRule (Func ruleName ruleArgs,result)) [(Func name args)]
-    where
-    reduce :: ReductionRule -> [Term] -> Term
-    reduce (ReductionRule (Func ruleName ruleArgs,result)) ((Func name args):terms) =
-      if ruleName == name && length args == length ruleArgs 
-        then swapTerm (ReductionRule (Func ruleName ruleArgs,result)) (Func name args) --result
-        else Func name (map (\x -> reduce (ReductionRule (Func ruleName ruleArgs, result)) (terms++[x])) args)
---      where newTerms = filter isFunc args
-    reduce (ReductionRule (Func ruleName ruleArgs,result)) ((Var v):terms) = Var v
 
--- not ready tmp without list
 reduceTerm :: ReductionRule -> Term -> Term
 reduceTerm (ReductionRule (Func ruleName ruleArgs,result)) (Func name args) =
-    if checkRuleInTerm (ReductionRule (Func ruleName ruleArgs,result)) (Func name args) 
-      then swapTerm (ReductionRule (Func ruleName ruleArgs,result)) (Func name args) 
-      else Func name (map (reduceTerm (ReductionRule (Func ruleName ruleArgs, result))) args)
-reduceTerm (ReductionRule (Func ruleName ruleArgs,result)) (Var v) = Var v
-
--- tmp 3 version, works but horrible written, current good
-reduceTerm3 :: ReductionRule -> Term -> Term
-reduceTerm3 (ReductionRule (Func ruleName ruleArgs,result)) (Func name args) =
     if checkRuleInTerm (ReductionRule (Func ruleName ruleArgs,result)) (Func name args) 
       then swapTerm (ReductionRule (Func ruleName ruleArgs,result)) (Func name args) 
       else Func name (onlyFirst False (map (\x -> (x ,reduceTerm (ReductionRule (Func ruleName ruleArgs, result)) x)) args))
@@ -90,19 +69,15 @@ reduceTerm3 (ReductionRule (Func ruleName ruleArgs,result)) (Func name args) =
         then a:onlyFirst False rest
         else b:onlyFirst True rest
     onlyFirst True ((a,b):rest) = a:onlyFirst True rest
-    onlyFirst True [] = []
-reduceTerm3 (ReductionRule (Func ruleName ruleArgs,result)) (Var v) = Var v
+    onlyFirst _ [] = []
+    swapTerm :: ReductionRule -> Term -> Term
+    swapTerm (ReductionRule (rule,result)) term = 
+      foldl (changeBinding) result (listBindedVars (ReductionRule (rule,result)) term)
+    changeBinding :: Term -> (Term,Term) -> Term
+    changeBinding (Var t) (Var old, binded) = if (Var old) == (Var t) then binded else Var t
+    changeBinding (Func t args) (Var old, binded) = Func t (map (\x -> changeBinding x (Var old,binded)) args)
 
---ready
-swapTerm :: ReductionRule -> Term -> Term
-swapTerm (ReductionRule (rule,result)) term = 
-   foldl (changeBinding) result (listBindedVars (ReductionRule (rule,result)) term)
-
---ready
-changeBinding :: Term -> (Term,Term) -> Term
-changeBinding (Var t) (Var old, binded) = if (Var old) == (Var t) then binded else Var t
-changeBinding (Func t args) (Var old, binded) = Func t (map (\x -> changeBinding x (Var old,binded)) args)
-
+reduceTerm (ReductionRule (Func ruleName ruleArgs,result)) (Var v) = Var v
 
 --new try works in simple cases 
 listBindedVars :: ReductionRule -> Term -> [(Term, Term)]
@@ -126,16 +101,30 @@ listBindedVars (ReductionRule (rule,result)) term =
 --ready
 checkRuleInTerm :: ReductionRule -> Term -> Bool
 checkRuleInTerm (ReductionRule (Func ruleFuncName ruleFuncArgs,result)) (Func name args) =
-    if ruleFuncName == name && length ruleFuncArgs == length args
-      then check (Func ruleFuncName ruleFuncArgs) (Func name args) 
+    if checkStructure (Func ruleFuncName ruleFuncArgs) (Func name args) 
+      then checkBindedVars (listBindedVars (ReductionRule (Func ruleFuncName ruleFuncArgs,result)) (Func name args) )
       else False
     where 
-    check :: Term -> Term -> Bool
-    check (Var rv) _ = True
-    check (Func rName rArgs) (Func name args) =
+    checkStructure :: Term -> Term -> Bool
+    checkStructure (Var rv) _ = True
+    checkStructure (Func rName rArgs) (Func name args) =
       if rName == name && length rArgs == length args
-        then all (uncurry check) (zip rArgs args)
+        then all (uncurry checkStructure) (zip rArgs args)
         else False
+    checkBindedVars :: [(Term,Term)] -> Bool
+    checkBindedVars [] = True
+    checkBindedVars ((Var v,term):rest) =
+      if checkBindedVar (Var v,term) rest
+        then checkBindedVars rest
+        else False
+      where
+      checkBindedVar :: (Term,Term) -> [(Term,Term)] -> Bool
+      checkBindedVar (Var v,bindedTerm) [] = True
+      checkBindedVar (Var v,bindedTerm) ((Var h,hTerm):rest) =
+        if v == h 
+          then bindedTerm == hTerm && (checkBindedVar (Var v,bindedTerm) rest)
+          else checkBindedVar (Var v,bindedTerm) rest
+    
 
 --ready 
 isReducable :: ReductionRules -> Term -> Bool

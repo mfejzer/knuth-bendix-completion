@@ -60,16 +60,16 @@ findCriticalPair (ReductionRule (termA,_)) (ReductionRule (termB,_)) axioms = ax
 reduceTerm :: ReductionRule -> Term -> Term
 reduceTerm (ReductionRule (Func ruleName ruleArgs,result)) (Func name args) =
     if checkRuleInTerm (ReductionRule (Func ruleName ruleArgs,result)) (Func name args) 
-      then swapTerm (ReductionRule (Func ruleName ruleArgs,result)) (Func name args) 
-      else Func name (onlyFirst False (map (\x -> (x ,reduceTerm (ReductionRule (Func ruleName ruleArgs, result)) x)) args))
+      then swapTerm (ReductionRule (Func ruleName ruleArgs,result)) (Func name args)
+      else Func name (mapOnlyFirst (reduceTerm (ReductionRule (Func ruleName ruleArgs, result))) args)
     where
-    onlyFirst :: Bool -> [(Term, Term)] -> [Term]
-    onlyFirst False ((a,b):rest) = 
+    mapOnlyFirst :: (Term -> Term) -> [Term] -> [Term]
+    mapOnlyFirst f [] = []
+    mapOnlyFirst f (a:args) =
       if a == b
-        then a:onlyFirst False rest
-        else b:onlyFirst True rest
-    onlyFirst True ((a,b):rest) = a:onlyFirst True rest
-    onlyFirst _ [] = []
+        then a:(mapOnlyFirst f args)
+        else b:args
+      where b = f a
     swapTerm :: ReductionRule -> Term -> Term
     swapTerm (ReductionRule (rule,result)) term = 
       foldl (changeBinding) result (listBindedVars (ReductionRule (rule,result)) term)
@@ -107,6 +107,7 @@ checkRuleInTerm (ReductionRule (Func ruleFuncName ruleFuncArgs,result)) (Func na
     where 
     checkStructure :: Term -> Term -> Bool
     checkStructure (Var rv) _ = True
+    checkStructure (Func rName rArgs) (Var v) = False
     checkStructure (Func rName rArgs) (Func name args) =
       if rName == name && length rArgs == length args
         then all (uncurry checkStructure) (zip rArgs args)

@@ -38,14 +38,29 @@ kbCompletion (Axioms axioms) = kb (Axioms axioms) (ReductionRules []) where
             normalisedAxiom = normaliseAxiom axiom (ReductionRules rules); 
             rule = orderAxiom normalisedAxiom
 
---todo
+
 normaliseAxiom :: Axiom -> ReductionRules -> Axiom
-normaliseAxiom a _ = a
+normaliseAxiom (Axiom (termA,termB)) rules = 
+    (Axiom (reduceToNormalised rules termA,reduceToNormalised rules termB))
+
+reduceToNormalised :: ReductionRules -> Term -> Term
+reduceToNormalised (ReductionRules rules) term = 
+    if result == term
+      then term
+      else reduceToNormalised (ReductionRules rules) result
+    where result = reduce (ReductionRules rules) term
+
+reduce :: ReductionRules -> Term -> Term
+reduce (ReductionRules []) term = term
+reduce (ReductionRules (rule:rest)) term =
+    if result == term
+      then reduce (ReductionRules rest) term
+      else result
+    where result = reduceTerm rule term
 
 orderAxiom :: Axiom -> ReductionRule 
 orderAxiom a = if (lhs a) > (rhs a) then (ReductionRule (lhs a,rhs a)) else (ReductionRule (rhs a,lhs a))
 
---ready
 superpose :: ReductionRule -> ReductionRules -> Axioms -> Axioms
 superpose (ReductionRule rule) (ReductionRules []) (Axioms axioms) = (Axioms axioms)
 superpose (ReductionRule rule) (ReductionRules (r:rules)) (Axioms axioms) =

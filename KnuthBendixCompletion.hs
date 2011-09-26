@@ -69,8 +69,42 @@ superpose (ReductionRule rule) (ReductionRules (r:rules)) (Axioms axioms) =
 
 --todo
 findCriticalPair :: ReductionRule -> ReductionRule -> Axioms -> Axioms
-findCriticalPair (ReductionRule (termA,_)) (ReductionRule (termB,_)) axioms = axioms
+findCriticalPair (ReductionRule (termA,_)) (ReductionRule (termB,_)) axioms = 
+    if checkCriticalPair termA termB
+      then createCriticalPair termA termB axioms
+      else axioms 
 
+checkCriticalPair :: Term -> Term -> Bool
+checkCriticalPair (Func nameA argsA) (Func nameB argsB) = False 
+--    if checkStructure (Func nameA argsA) (Func nameB argsB) 
+--      then checkBindedVars (listBindedVars (ReductionRule (Func ruleFuncName ruleFuncArgs,result)) (Func name args) )
+--      else False
+--    where
+--    checkStructure :: Term -> Term -> Bool
+--    checkStructure (Var aV) (Func bName bArgs) = True
+--    checkStructure (Var aV) (Var bV) = True
+--    checkStructure (Func aName aArgs) (Var bV) = 
+--    checkStructure (Func aName aArgs) (Func bName bArgs) =
+--      if aName == bName && length aArgs == length bArgs
+--        then all (uncurry checkStructure) (zip aArgs bArgs)
+--        else False
+--    checkBindedVars :: [(Term,Term)] -> Bool
+--    checkBindedVars [] = True
+--    checkBindedVars ((Var v,term):rest) =
+--      if checkBindedVar (Var v,term) rest
+--        then checkBindedVars rest
+--        else False
+--      where
+--      checkBindedVar :: (Term,Term) -> [(Term,Term)] -> Bool
+--      checkBindedVar (Var v,bindedTerm) [] = True
+--      checkBindedVar (Var v,bindedTerm) ((Var h,hTerm):rest) =
+--        if v == h 
+--          then bindedTerm == hTerm && (checkBindedVar (Var v,bindedTerm) rest)
+--          else checkBindedVar (Var v,bindedTerm) rest
+   
+
+createCriticalPair :: Term -> Term -> Axioms -> Axioms
+createCriticalPair _ _ a = a
 
 reduceTerm :: ReductionRule -> Term -> Term
 reduceTerm (ReductionRule (Func ruleName ruleArgs,result)) (Func name args) =
@@ -157,6 +191,15 @@ isReducable (ReductionRules (rule:rules)) t =
           then checkRuleInTerm (ReductionRule (Func rFuncName rFuncArgs, result)) (Func name args) 
           else any (isR (ReductionRule (Func rFuncName rFuncArgs, result))) args 
 
+
+renameVars :: Term -> Term
+renameVars = renameVarsWithPrefix ""
+
+renameVarsWithPrefix :: String -> Term -> Term
+renameVarsWithPrefix prefix term = rename prefix term (findVarsInTerm term) 0 where
+    rename :: String -> Term -> [Term] -> Int -> Term
+    rename prefix term [] n = term
+    rename prefix term (v:vars) n = rename prefix (changeVarInTerm v (Var (prefix++('v':(show n)))) term) vars (n+1)
 
 
 isFunc :: Term -> Bool

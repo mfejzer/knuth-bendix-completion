@@ -70,9 +70,10 @@ superpose (ReductionRule rule) (ReductionRules (r:rules)) (Axioms axioms) =
 --todo
 findCriticalPair :: ReductionRule -> ReductionRule -> Axioms -> Axioms
 findCriticalPair (ReductionRule (termA,_)) (ReductionRule (termB,_)) axioms = 
-    if checkCriticalPair termA termB
-      then createCriticalPair termA termB axioms
-      else axioms 
+    if checkCriticalPair renamedTermA renamedTermB
+      then createCriticalPair renamedTermA renamedTermB axioms
+      else axioms
+    where (renamedTermA,renamedTermB) = (renameVarsWithPrefix "l" termA,renameVarsWithPrefix "r" termB)
 
 checkCriticalPair :: Term -> Term -> Bool
 checkCriticalPair (Func nameA argsA) (Func nameB argsB) = False 
@@ -200,6 +201,13 @@ renameVarsWithPrefix prefix term = rename prefix term (findVarsInTerm term) 0 wh
     rename :: String -> Term -> [Term] -> Int -> Term
     rename prefix term [] n = term
     rename prefix term (v:vars) n = rename prefix (changeVarInTerm v (Var (prefix++('v':(show n)))) term) vars (n+1)
+
+renameVarsInReductionRule :: ReductionRule -> ReductionRule
+renameVarsInReductionRule (ReductionRule (rule,result)) = rename (ReductionRule (rule,result)) (findVarsInTerm rule) 0 where
+    rename :: ReductionRule -> [Term] -> Int -> ReductionRule
+    rename (ReductionRule (rule,result)) [] n = (ReductionRule (rule,result))
+    rename (ReductionRule (rule,result)) (v:vars) n = 
+      rename (ReductionRule (changeVarInTerm v (Var ('v':(show n))) rule,changeVarInTerm v (Var ('v':(show n))) result)) vars (n+1)
 
 
 isFunc :: Term -> Bool

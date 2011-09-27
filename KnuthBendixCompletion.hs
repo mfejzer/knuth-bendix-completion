@@ -32,7 +32,7 @@ kbCompletion (Axioms axioms) = kb (Axioms axioms) (ReductionRules []) where
     kb (Axioms [])     (ReductionRules rules) = (ReductionRules rules)
     kb (Axioms axioms) (ReductionRules rules) = 
       if (lhs normalisedAxiom) /= (rhs normalisedAxiom)
-        then kb (superpose rule (ReductionRules (rules++[rule])) restAxioms) (ReductionRules (rules++[rule]))
+        then kb (superposeRules rule (ReductionRules (rules++[rule])) restAxioms) (ReductionRules (rules++[rule]))
         else kb restAxioms (ReductionRules rules)
       where (axiom,restAxioms) = takeAxiom (Axioms axioms); 
             normalisedAxiom = normaliseAxiom axiom (ReductionRules rules); 
@@ -61,51 +61,82 @@ reduce (ReductionRules (rule:rest)) term =
 orderAxiom :: Axiom -> ReductionRule 
 orderAxiom a = if (lhs a) > (rhs a) then (ReductionRule (lhs a,rhs a)) else (ReductionRule (rhs a,lhs a))
 
-superpose :: ReductionRule -> ReductionRules -> Axioms -> Axioms
-superpose (ReductionRule rule) (ReductionRules []) (Axioms axioms) = (Axioms axioms)
-superpose (ReductionRule rule) (ReductionRules (r:rules)) (Axioms axioms) =
-    superpose (ReductionRule rule) (ReductionRules rules) newAxioms where
+superposeRules :: ReductionRule -> ReductionRules -> Axioms -> Axioms
+superposeRules (ReductionRule rule) (ReductionRules []) (Axioms axioms) = (Axioms axioms)
+superposeRules (ReductionRule rule) (ReductionRules (r:rules)) (Axioms axioms) =
+    superposeRules (ReductionRule rule) (ReductionRules rules) newAxioms where
       newAxioms = findCriticalPair (ReductionRule rule) r (Axioms axioms)
 
 --todo
 findCriticalPair :: ReductionRule -> ReductionRule -> Axioms -> Axioms
-findCriticalPair (ReductionRule (termA,_)) (ReductionRule (termB,_)) axioms = 
+findCriticalPair (ReductionRule (termA,resultA)) (ReductionRule (termB,resultB)) axioms = 
     if checkCriticalPair renamedTermA renamedTermB
-      then createCriticalPair renamedTermA renamedTermB axioms
+      then addCriticalPair (ReductionRule (renamedTermA,renamedResultA)) (ReductionRule (renamedTermB,renamedResultB)) axioms
       else axioms
-    where (renamedTermA,renamedTermB) = (renameVarsWithPrefix "l" termA,renameVarsWithPrefix "r" termB)
+    where (renamedTermA,renamedResultA,renamedTermB,renamedResultB) = 
+            (renameVarsWithPrefix "l" termA, renameVarsWithPrefix "l" resultA, renameVarsWithPrefix "r" termB, renameVarsWithPrefix "r" resultB)
 
-checkCriticalPair :: Term -> Term -> Bool
-checkCriticalPair (Func nameA argsA) (Func nameB argsB) = False 
---    if checkStructure (Func nameA argsA) (Func nameB argsB) 
---      then checkBindedVars (listBindedVars (ReductionRule (Func ruleFuncName ruleFuncArgs,result)) (Func name args) )
---      else False
---    where
---    checkStructure :: Term -> Term -> Bool
---    checkStructure (Var aV) (Func bName bArgs) = True
---    checkStructure (Var aV) (Var bV) = True
---    checkStructure (Func aName aArgs) (Var bV) = 
---    checkStructure (Func aName aArgs) (Func bName bArgs) =
---      if aName == bName && length aArgs == length bArgs
---        then all (uncurry checkStructure) (zip aArgs bArgs)
---        else False
---    checkBindedVars :: [(Term,Term)] -> Bool
---    checkBindedVars [] = True
---    checkBindedVars ((Var v,term):rest) =
---      if checkBindedVar (Var v,term) rest
---        then checkBindedVars rest
---        else False
---      where
---      checkBindedVar :: (Term,Term) -> [(Term,Term)] -> Bool
---      checkBindedVar (Var v,bindedTerm) [] = True
---      checkBindedVar (Var v,bindedTerm) ((Var h,hTerm):rest) =
---        if v == h 
---          then bindedTerm == hTerm && (checkBindedVar (Var v,bindedTerm) rest)
---          else checkBindedVar (Var v,bindedTerm) rest
-   
+checkCriticalPair :: Term -> Term -> Bool --e
+checkCriticalPair (Func nameA argsA) (Func nameB argsB) = --False 
+    if checkSuperposition (Func nameA argsA) (Func nameB argsB) 
+      then True
+      else any (\a -> checkSuperposition a (Func nameB argsB)) argsA
+ 
+checkSuperposition :: Term -> Term -> Bool
+checkSuperposition (Func nameA argsA) (Func nameB argsB) = --False 
+    if checkStructure (Func nameA argsA) (Func nameB argsB) 
+      then checkBindedVars (listBindedVars (ReductionRule (Func nameA argsA,Func nameA argsA)) (Func nameB argsB))
+      else False
+    where
+    checkStructure :: Term -> Term -> Bool --propably ready
+    checkStructure (Var aV) (Func bName bArgs) = True --ok
+    checkStructure (Var aV) (Var bV) = True --ok
+    checkStructure (Func aName aArgs) (Var bV) = False --propably
+    checkStructure (Func aName aArgs) (Func bName bArgs) = -- ok
+      if aName == bName && length aArgs == length bArgs
+        then all (uncurry checkStructure) (zip aArgs bArgs)
+        else False
+    checkBindedVars :: [(Term,Term)] -> Bool
+    checkBindedVars [] = True
+    checkBindedVars ((Var v,term):rest) =
+      if checkBindedVar (Var v,term) rest
+        then checkBindedVars rest
+        else False
+      where
+      checkBindedVar :: (Term,Term) -> [(Term,Term)] -> Bool
+      checkBindedVar (Var v,bindedTerm) [] = True
+      checkBindedVar (Var v,bindedTerm) ((Var h,hTerm):rest) =
+        if v == h 
+          then bindedTerm == hTerm && (checkBindedVar (Var v,bindedTerm) rest)
+          else checkBindedVar (Var v,bindedTerm) rest
+checkSuperposition _ _ = False   
 
-createCriticalPair :: Term -> Term -> Axioms -> Axioms
-createCriticalPair _ _ a = a
+addCriticalPair :: ReductionRule -> ReductionRule -> Axioms -> Axioms
+addCriticalPair ruleA ruleB (Axioms axioms) = (Axioms (axioms ++ [createCriticalPair ruleA ruleB]))
+
+createCriticalPair :: ReductionRule -> ReductionRule -> Axiom
+createCriticalPair (ReductionRule (ruleA,resultA)) (ReductionRule (ruleB,resultB)) = 
+    (Axiom (reduceTerm (ReductionRule (ruleA,resultA)) criticalTerm ,reduceTerm (ReductionRule (ruleB,resultB)) criticalTerm))
+    where criticalTerm = createCriticalTerm ruleA ruleB
+
+createCriticalTerm :: Term -> Term -> Term
+createCriticalTerm (Func nameA argsA) (Func nameB argsB) = -- (Var "dummy")
+    create (Func nameA argsA) (Func nameB argsB) (Func nameA argsA)
+    where
+    create :: Term -> Term -> Term -> Term
+    create (Func nameA argsA) (Func nameB argsB) result = 
+      if checkSuperposition (Func nameA argsA) (Func nameB argsB) 
+        then superpose (Func nameA argsA) (Func nameB argsB) result 
+        else superposeOnlyFirst (Func nameB argsB) result argsA
+--      where 
+superpose :: Term -> Term -> Term -> Term 
+superpose termA termB result = 
+          foldl (changeBinding) result (listBindedVars (ReductionRule (termA,termA)) termB)
+superposeOnlyFirst :: Term -> Term -> [Term] -> Term
+superposeOnlyFirst termB result (termA:terms) =
+        if checkSuperposition termA termB
+          then superpose termA termB result
+          else superposeOnlyFirst termB result terms
 
 reduceTerm :: ReductionRule -> Term -> Term
 reduceTerm (ReductionRule (Func ruleName ruleArgs,result)) (Func name args) =
@@ -123,11 +154,12 @@ reduceTerm (ReductionRule (Func ruleName ruleArgs,result)) (Func name args) =
     swapTerm :: ReductionRule -> Term -> Term
     swapTerm (ReductionRule (rule,result)) term = 
       foldl (changeBinding) result (listBindedVars (ReductionRule (rule,result)) term)
-    changeBinding :: Term -> (Term,Term) -> Term
-    changeBinding (Var t) (Var old, binded) = if (Var old) == (Var t) then binded else Var t
-    changeBinding (Func t args) (Var old, binded) = Func t (map (\x -> changeBinding x (Var old,binded)) args)
-
 reduceTerm (ReductionRule (Func ruleName ruleArgs,result)) (Var v) = Var v
+
+changeBinding :: Term -> (Term,Term) -> Term
+changeBinding (Var t) (Var old, binded) = if (Var old) == (Var t) then binded else Var t
+changeBinding (Func t args) (Var old, binded) = Func t (map (\x -> changeBinding x (Var old,binded)) args)
+
 
 --new try works in simple cases 
 listBindedVars :: ReductionRule -> Term -> [(Term, Term)]

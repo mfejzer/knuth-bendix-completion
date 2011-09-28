@@ -59,7 +59,20 @@ reduce (ReductionRules (rule:rest)) term =
     where result = reduceTerm rule term
 
 orderAxiom :: Axiom -> ReductionRule 
-orderAxiom a = if (lhs a) > (rhs a) then (ReductionRule (lhs a,rhs a)) else (ReductionRule (rhs a,lhs a))
+orderAxiom a = if orderTerms (lhs a) (rhs a) == GT then (ReductionRule (lhs a,rhs a)) else (ReductionRule (rhs a,lhs a))
+
+orderTerms :: Term -> Term -> Ordering
+orderTerms (Func name args) (Var v) = GT
+orderTerms (Var v) (Func name args) = LT
+orderTerms (Var a) (Var b) = EQ
+orderTerms (Func nameA (a:argsA)) (Func nameB (b:argsB)) =
+    if order == EQ
+      then orderTerms (Func nameA argsA) (Func nameB argsB)
+      else order
+    where order = orderTerms a b
+orderTerms (Func nameA []) (Func nameB []) = EQ
+orderTerms (Func nameA (a:args)) (Func nameB []) = GT
+orderTerms (Func nameA []) (Func nameB (b:args)) = LT
 
 superposeRules :: ReductionRule -> ReductionRules -> Axioms -> Axioms
 superposeRules (ReductionRule rule) (ReductionRules []) (Axioms axioms) = (Axioms axioms)
@@ -117,7 +130,7 @@ addCriticalPair ruleA ruleB (Axioms axioms) = (Axioms (axioms ++ [createCritical
 createCriticalPair :: ReductionRule -> ReductionRule -> Axiom
 createCriticalPair (ReductionRule (ruleA,resultA)) (ReductionRule (ruleB,resultB)) = 
     (Axiom (reduceTerm (ReductionRule (ruleA,resultA)) criticalTerm ,reduceTerm (ReductionRule (ruleB,resultB)) criticalTerm))
-    where criticalTerm = createCriticalTerm ruleA ruleB
+    where criticalTerm = renameVars (createCriticalTerm ruleA ruleB)
 
 createCriticalTerm :: Term -> Term -> Term
 createCriticalTerm (Func nameA argsA) (Func nameB argsB) = -- (Var "dummy")

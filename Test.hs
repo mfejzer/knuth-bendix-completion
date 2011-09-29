@@ -37,3 +37,28 @@ runTests = and [reduceTerm (ReductionRule (translate "f x (f x y)",translate "g 
                ReductionRule (Func "+" [Func "-" [Var "v0"],Func "+" [Var "v0",Var "v1"]],Func "+" [Func "zero" [],Var "v1"])
              ]
 
+groupAxioms = 
+    Axioms [Axiom (Func "+" [Func "0" [],Var "x"],Var "x"),
+            Axiom (Func "+" [Func "-" [Var "x"],Var "x"],Func "0" []),
+            Axiom (Func "+" [Func "+" [Var "x",Var "y"],Var "z"],Func "+" [Var "x",Func "+" [Var "y",Var "z"]])]
+
+strangeAxioms =
+    Axioms [Axiom (Func "*" [Func "e" [],Var "x"],Var "x"),
+            Axiom (Func "*" [Var "x",Func "e" []],Var "x"),
+            Axiom (Func "*" [Var "x", Var "x"],Func "e" []),
+            Axiom (Func "*" [Func "*" [Var "x",Var "y"],Var "z"],Func "*" [Var "x",Func "*" [Var "y",Var "z"]])] 
+
+
+rules =
+  (ReductionRules [r0,r1,r2,r3])
+r0 =  ReductionRule (Func "+" [Func "0" [],Var "x"],Var "x")
+r1 =  ReductionRule (Func "+" [Func "-" [Var "x"],Var "x"],Func "0" [])
+r2 =  ReductionRule (Func "+" [Func "+" [Var "x",Var "y"],Var "z"],Func "+" [Var "x",Func "+" [Var "y",Var "z"]])
+r3 =  ReductionRule (Func "+" [Func "-" [Var "v0"],Func "+" [Var "v0",Var "v1"]],Var "v1")
+
+
+testFindCriticalPairR2R3 = 
+   findCriticalPair r2 r3 (Axioms []) == 
+     (Axioms [Axiom (Func "+" [Func "-" [Var "v0"],Func "+" [Func "+" [Var "v0",Var "v1"],Var "v2"]],Func "+" [Var "v1",Var "v2"])])
+
+

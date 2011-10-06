@@ -28,15 +28,15 @@ tests = [reduceTerm (ReductionRule (translate "f x (f x y)",translate "g x")) (t
              ,checkCriticalPair (translate "+ (+ x y) z") (translate "+ (- x) x") == True
              ,checkSuperposition  (translate "+ x y") (translate "+ (- x) x") == True
              ,checkSuperposition  (translate "+ x (- y)") (translate "+ (- x) x") == False
-             ,superpose (translate "+ x y") (translate "+ (- x) x") (translate "+ x y") == Func "+" [Func "-" [Var "x"],Var "x"]
-             ,createCriticalTerm  (translate "+ (+ x y) z") (translate "+ (- x) x") ==Func "+" [Func "+" [Func "-" [Var "x"],Var "x"],Var "z"]
-             ,(createCriticalPair (ReductionRule (translate "+ (+ x y) z",translate "+ x (+ y z)")) (ReductionRule (translate "+ (- x) x",Func "zero" []))) ==
-               Axiom (Func "+" [Func "-" [Var "v0"],Func "+" [Var "v0",Var "v1"]],Func "+" [Func "zero" [],Var "v1"])
+--             ,superpose (translate "+ x y") (translate "+ (- x) x") (translate "+ x y") == Func "+" [Func "-" [Var "x"],Var "x"]
+--             ,createCriticalTerm  (translate "+ (+ x y) z") (translate "+ (- x) x") ==Func "+" [Func "+" [Func "-" [Var "x"],Var "x"],Var "z"]
+--             ,(createCriticalPair (ReductionRule (translate "+ (+ x y) z",translate "+ x (+ y z)")) (ReductionRule (translate "+ (- x) x",Func "zero" []))) ==
+--               Axiom (Func "+" [Func "-" [Var "v0"],Func "+" [Var "v0",Var "v1"]],Func "+" [Func "zero" [],Var "v1"])
              ,findCriticalPair (ReductionRule (translate "+ (+ x y) z",translate "+ x (+ y z)")) (ReductionRule (translate "+ (- x) x",Func "zero" [])) (Axioms []) ==
                Axioms [Axiom (Func "+" [Func "-" [Var "v0"],Func "+" [Var "v0",Var "v1"]],Func "+" [Func "zero" [],Var "v1"])]
-             ,orderAxiom (createCriticalPair (ReductionRule (translate "+ (+ x y) z",translate "+ x (+ y z)")) (ReductionRule (translate "+ (- x) x",Func "zero" []))) ==
-               ReductionRule (Func "+" [Func "-" [Var "v0"],Func "+" [Var "v0",Var "v1"]],Func "+" [Func "zero" [],Var "v1"]),
-              findCriticalPair r3 r3 (Axioms []) == 
+--             ,orderAxiom (createCriticalPair (ReductionRule (translate "+ (+ x y) z",translate "+ x (+ y z)")) (ReductionRule (translate "+ (- x) x",Func "zero" []))) ==
+--               ReductionRule (Func "+" [Func "-" [Var "v0"],Func "+" [Var "v0",Var "v1"]],Func "+" [Func "zero" [],Var "v1"])
+             ,findCriticalPair r3 r3 (Axioms []) == 
                Axioms [Axiom (Func "+" [Var "v0",Var "v1"],Func "+" [Func "-" [Func "-" [Var "v0"]],Var "v1"])]
              ]
 
@@ -75,10 +75,6 @@ r12 =  ReductionRule (Func "+" [Var "x",Func "+" [Func "-" [Var "x"],Var "y"]],V
 r13 =  ReductionRule (Func "+" [Var "v0",Func "+" [Var "v1",Func "-" [Func "+" [Var "v0",Var "v1"]]]],Func "0" [])
 r14 =  ReductionRule (Func "+" [Var "v0",Func "-"[Func "+" [Var "v0",Var "v1"]]],Var "v1")
 r15 =  ReductionRule (Func "-" [Func "+" [Var "v0",Var "v1"]],Func "+" [Func "-" [Var "v0"],Func "-" [Var "v1"]])
-
-testFindCriticalPairR3R4 = 
-   findCriticalPair r3 r4 (Axioms []) == 
-     (Axioms [Axiom (Func "+" [Func "-" [Var "v0"],Func "+" [Func "+" [Var "v0",Var "v1"],Var "v2"]],Func "+" [Var "v1",Var "v2"])])
 
 debugKB :: (Axioms , ReductionRules) -> (Axioms,ReductionRules)
 debugKB (Axioms [],ReductionRules rules) = (Axioms [], ReductionRules rules)
@@ -147,13 +143,15 @@ bcheckCriticalPair _ _ = False
 bcheckSuperposition :: Term -> Term -> Bool
 bcheckSuperposition (Func nameA argsA) (Func nameB argsB) =  
     if bcheckStructure (Func nameA argsA) (Func nameB argsB) 
-      then True --bcheckBindedVars (listBindedVars (ReductionRule (Func nameA argsA,Func nameA argsA)) (Func nameB argsB))
+      then bcheckBindedVars $ fixBindedVars (listBindedVars (ReductionRule (Func nameA argsA,Func nameA argsA)) (Func nameB argsB))
       else False
 bcheckSuperposition _ _ = False 
 bcheckStructure :: Term -> Term -> Bool --propably ready
 bcheckStructure (Var aV) (Func bName bArgs) = True --ok
 bcheckStructure (Var aV) (Var bV) = True --ok
-bcheckStructure (Func aName aArgs) (Var bV) = True --False --propably
+--bcheckStructure (Func aName aArgs) (Var bV) = True--False --propably
+bcheckStructure (Func aName (a:aArgs)) (Var bV) = True --False --True --propably!
+bcheckStructure (Func aName []) (Var bV) = True --False --propably!
 bcheckStructure (Func aName aArgs) (Func bName bArgs) = -- ok
       if aName == bName && length aArgs == length bArgs
         then all (uncurry bcheckStructure) (zip aArgs bArgs)
@@ -172,5 +170,91 @@ bcheckBindedVars ((Var v,term):rest) =
           then bindedTerm == hTerm && (checkBindedVar (Var v,bindedTerm) rest)
           else checkBindedVar (Var v,bindedTerm) rest
 
-error = checkSuperposition  (getRule r7) (getRule r2)
+
+
+betterCreateCriticalTerm :: Term -> Term -> Maybe Term
+betterCreateCriticalTerm (Func nameA argsA) (Func nameB argsB) = 
+    create (Func nameA argsA) (Func nameB argsB) (Func nameA argsA)
+    where
+    create :: Term -> Term -> Term -> Maybe Term
+    create (Func nameA argsA) (Func nameB argsB) result = 
+      if orderTerms (Func nameA argsA) (Func nameB argsB) == EQ
+        then 
+          betterSuperposeArgs argsA (Func nameB argsB) result
+        else
+          if betterCheckSuperposition (Func nameA argsA) (Func nameB argsB) 
+            then
+              betterSuperpose (Func nameA argsA) (Func nameB argsB) result
+            else
+              betterSuperposeArgs argsA (Func nameB argsB) result
+
+betterSuperpose :: Term -> Term -> Term -> Maybe Term
+betterSuperpose termA termB termResult =
+    Just $ bindingAtoB (fixedBindingBtoA (fixedBindingAtoB termResult))
+{--foldl (changeBinding) (foldl (changeBinding) termResult (betterFix $ listBindedVars (ReductionRule (termA,termA)) termB)) $ betterFix (listBindedVars (ReductionRule (termB,termB)) termA) --}
+    where 
+    bindingAtoB :: Term -> Term
+    bindingAtoB term = foldl (changeBinding) term (listBindedVars (ReductionRule (termA,termA)) termB) 
+    bindingBtoA :: Term -> Term
+    bindingBtoA term = foldl (changeBinding) term (listBindedVars (ReductionRule (termB,termB)) termA) 
+    fixedBindingAtoB :: Term -> Term
+    fixedBindingAtoB term = foldl (changeBinding) term (betterFix $ listBindedVars (ReductionRule (termA,termA)) termB) 
+    fixedBindingBtoA :: Term -> Term
+    fixedBindingBtoA term = foldl (changeBinding) term (betterFix $ listBindedVars (ReductionRule (termB,termB)) termA) 
+
+
+betterFix :: [(Term,Term)] -> [(Term,Term)]
+betterFix ((Var a,Var b):rest) = betterFix rest
+betterFix ((Var v,Func name args):rest) = (Var v,Func name args):(betterFix rest)
+betterFix [] = []
+
+betterSuperposeArgs :: [Term] -> Term -> Term -> Maybe Term 
+betterSuperposeArgs ((Func nameA argsA):terms) termB termResult = 
+    if betterCheckSuperposition (Func nameA argsA) termB
+      then 
+        betterSuperpose (Func nameA argsA) termB termResult
+      else
+        betterSuperposeArgs (terms++argsA) termB termResult
+betterSuperposeArgs ((Var a):terms) termB termResult = 
+    betterSuperposeArgs terms termB termResult
+betterSuperposeArgs [] termB termResult = Nothing
+
+betterCheckSuperposition  = bcheckSuperposition 
+--betterCheckSuperposition :: Term -> Term -> Bool 
+--betterCheckSuperposition (Func aName aArgs) (Func bName bArgs) =
+--    if aName == bName && (length aArgs) == (length bArgs)
+--     then all (uncurry checkStructure) (zip aArgs bArgs)
+--     else False
+     
+{--
+checkSuperposition :: Term -> Term -> Bool
+checkSuperposition (Func nameA argsA) (Func nameB argsB) =  
+    if checkStructure (Func nameA argsA) (Func nameB argsB) 
+      then checkBindedVars $ fixBindedVars (listBindedVars (ReductionRule (Func nameA argsA,Func nameA argsA)) (Func nameB argsB))
+      else False
+    where
+    checkStructure :: Term -> Term -> Bool --propably ready
+    checkStructure (Var aV) (Func bName bArgs) = True --ok
+    checkStructure (Var aV) (Var bV) = True --ok
+    checkStructure (Func aName (a:aArgs)) (Var bV) = True --propably!
+    checkStructure (Func aName []) (Var bV) = False --propably!
+    checkStructure (Func aName aArgs) (Func bName bArgs) = -- ok
+      if aName == bName && length aArgs == length bArgs
+        then all (uncurry checkStructure) (zip aArgs bArgs)
+        else False
+    checkBindedVars :: [(Term,Term)] -> Bool
+    checkBindedVars [] = True
+    checkBindedVars ((Var v,term):rest) =
+      if checkBindedVar (Var v,term) rest
+        then checkBindedVars rest
+        else False
+      where
+      checkBindedVar :: (Term,Term) -> [(Term,Term)] -> Bool
+      checkBindedVar (Var v,bindedTerm) [] = True
+      checkBindedVar (Var v,bindedTerm) ((Var h,hTerm):rest) =
+        if v == h 
+          then bindedTerm == hTerm && (checkBindedVar (Var v,bindedTerm) rest)
+          else checkBindedVar (Var v,bindedTerm) rest
+checkSuperposition _ _ = False   
+--} 
 

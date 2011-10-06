@@ -87,30 +87,13 @@ superposeRules (ReductionRule rule) (ReductionRules (r:rules)) (Axioms axioms) =
     superposeRules (ReductionRule rule) (ReductionRules rules) newAxioms where
       newAxioms = findCriticalPair (ReductionRule rule) r (Axioms axioms)
 
-combine :: [Axiom] -> [Axiom] -> [Axiom]
-combine [] [] = []
-combine [] [axiom] = [axiom]
-combine [axiom] [] = [axiom]
-combine [a] [b] = 
-    if orderTerms (maximal a) (maximal b) == GT
-      then [b]
-      else [a]
-    where
-    maximal :: Axiom -> Term
-    maximal (Axiom (a,b)) =
-      if orderTerms a b == GT
-        then a
-        else b
-combine _ _ = [] 
-
 findCriticalPair :: ReductionRule -> ReductionRule -> Axioms -> Axioms
 findCriticalPair (ReductionRule (termA,resultA)) (ReductionRule (termB,resultB)) axioms = 
-    if checkCriticalPair renamedTermA renamedTermB
+    if orderTerms renamedTermA renamedTermB == GT
       then 
-        if checkCriticalPair renamedTermB renamedTermA
-          then addCriticalPair (ReductionRule (renamedTermA,renamedResultA)) (ReductionRule (renamedTermB,renamedResultB)) (
-                addCriticalPair (ReductionRule (renamedTermB,renamedResultB)) (ReductionRule (renamedTermA,renamedResultA)) axioms)
-          else addCriticalPair (ReductionRule (renamedTermA,renamedResultA)) (ReductionRule (renamedTermB,renamedResultB)) axioms
+        if checkCriticalPair renamedTermA renamedTermB
+          then addCriticalPair (ReductionRule (renamedTermA,renamedResultA)) (ReductionRule (renamedTermB,renamedResultB)) axioms
+          else axioms
       else 
         if checkCriticalPair renamedTermB renamedTermA
           then addCriticalPair (ReductionRule (renamedTermB,renamedResultB)) (ReductionRule (renamedTermA,renamedResultA)) axioms
@@ -160,36 +143,67 @@ checkSuperposition (Func nameA argsA) (Func nameB argsB) =
 checkSuperposition _ _ = False   
 
 addCriticalPair :: ReductionRule -> ReductionRule -> Axioms -> Axioms
-addCriticalPair ruleA ruleB  (Axioms axioms) = 
-    if (elem newAxiom axioms)
-      then (Axioms axioms)
-      else (Axioms (axioms ++ [newAxiom]))
+addCriticalPair ruleA ruleB (Axioms axioms) = 
+    addCriticalPair1 ruleA ruleB (Axioms axioms) (createCriticalPair ruleA ruleB)
     where
-    newAxiom = createCriticalPair ruleA ruleB
+    addCriticalPair1 :: ReductionRule -> ReductionRule -> Axioms -> Maybe Axiom -> Axioms
+    addCriticalPair1 ruleA ruleB (Axioms axioms) (Nothing) = addCriticalPair2 ruleA ruleB (Axioms axioms) (createCriticalPair ruleB ruleA) 
+    addCriticalPair1 ruleA ruleB (Axioms axioms) (Just axiom) = (Axioms (axioms++[axiom]))
+    addCriticalPair2 :: ReductionRule -> ReductionRule -> Axioms -> Maybe Axiom -> Axioms
+    addCriticalPair2 ruleA ruleB (Axioms axioms) (Nothing) = (Axioms axioms) 
+    addCriticalPair2 ruleA ruleB (Axioms axioms) (Just axiom) = (Axioms (axioms++[axiom]))
 
-createCriticalPair :: ReductionRule -> ReductionRule -> Axiom
+--    if (elem newAxiom axioms)
+--      then (Axioms axioms)
+--      else (Axioms (axioms ++ [newAxiom]))
+--    where
+--    newAxiom = createCriticalPair ruleA ruleB
+
+createCriticalPair :: ReductionRule -> ReductionRule -> Maybe Axiom
 createCriticalPair (ReductionRule (ruleA,resultA)) (ReductionRule (ruleB,resultB)) =
-    if orderTerms ruleA ruleB /= EQ
-      then
-        (Axiom (reduceTerm (ReductionRule (ruleA,resultA)) (Func name args),reduceTerm (ReductionRule (ruleB,resultB)) (Func name args))) 
-      else 
-        (Axiom (reduceTerm (ReductionRule (ruleA,resultA)) (Func name args),Func name (mapOnlyFirst (reduceTerm (ReductionRule (ruleB,resultB))) args)))
-    where 
-    (Func name args) = renameVars (createCriticalTerm ruleA ruleB)
-    mapOnlyFirst :: (Term -> Term) -> [Term] -> [Term]
-    mapOnlyFirst f [] = []
-    mapOnlyFirst f (a:args) =
-      if orderTerms a b == EQ
-        then a:(mapOnlyFirst f args)
-        else b:args
-      where b = f a
-
-createCriticalTerm :: Term -> Term -> Term
-createCriticalTerm (Func nameA argsA) (Func nameB argsB) = 
-    create (Func nameA argsA) (Func nameB argsB) (Func nameA argsA)
+    createCritical (ReductionRule (ruleA,resultA)) (ReductionRule (ruleB,resultB)) (createCriticalTerm ruleA ruleB)
     where
-    create :: Term -> Term -> Term -> Term
-    create (Func nameA argsA) (Func nameB argsB) result = 
+    createCritical :: ReductionRule -> ReductionRule -> Maybe Term -> Maybe Axiom
+    createCritical _ _ Nothing = Nothing
+    createCritical (ReductionRule (ruleA,resultA)) (ReductionRule (ruleB,resultB)) (Just (Func name args)) = 
+      if orderTerms ruleA ruleB /= EQ
+        then
+          if (orderTerms (Func rname rargs) reductionA /= EQ && orderTerms (Func rname rargs) reductionB /= EQ ) 
+            then 
+              Just (Axiom (reductionA,reductionB))
+            else Nothing
+        else 
+          Just (Axiom (reductionA,reductionRecB)) 
+      where 
+      (Func rname rargs) = renameVars (Func name args)
+      reductionA = reduceTerm (ReductionRule (ruleA,resultA)) (Func rname rargs)
+      reductionB = reduceTerm (ReductionRule (ruleB,resultB)) (Func rname rargs)
+      reductionRecB = Func rname (mapOnlyFirst (reduceTerm (ReductionRule (ruleB,resultB))) rargs)
+      mapOnlyFirst :: (Term -> Term) -> [Term] -> [Term]
+      mapOnlyFirst f [] = []
+      mapOnlyFirst f (a:args) =
+        if orderTerms a b == EQ
+          then a:(mapOnlyFirst f args)
+          else b:args
+        where b = f a
+
+--write better
+createCriticalTerm :: Term -> Term -> Maybe Term
+createCriticalTerm (Func nameA argsA) (Func nameB argsB) = 
+    create [(Func nameA argsA)] (Func nameB argsB) (Func nameA argsA)
+    where
+    create :: [Term] -> Term -> Term -> Maybe Term
+    create [(Func nameA argsA)] (Func nameB argsB) result = 
+      if checkSuperposition (Func nameA argsA) (Func nameB argsB) 
+        then 
+          if orderTerms (Func nameA argsA) (Func nameB argsB) == EQ
+            then 
+              superposeOnlyFirst (Func nameB argsB) result argsA
+            else 
+              superpose (Func nameA argsA) (Func nameB argsB) result
+        else
+          Nothing 
+    create ((Func nameA argsA):rest) (Func nameB argsB) result = 
       if checkSuperposition (Func nameA argsA) (Func nameB argsB) 
         then 
           if orderTerms (Func nameA argsA) (Func nameB argsB) == EQ
@@ -197,18 +211,19 @@ createCriticalTerm (Func nameA argsA) (Func nameB argsB) =
               superposeOnlyFirst (Func nameB argsB) result argsA
             else 
               superpose (Func nameA argsA) (Func nameB argsB) result 
-        else superposeOnlyFirst (Func nameB argsB) result argsA
+        else --superposeOnlyFirst (Func nameB argsB) result argsA
+          create (rest++argsA) (Func nameB argsB) result
 --      where 
-superpose :: Term -> Term -> Term -> Term 
+superpose :: Term -> Term -> Term -> Maybe Term 
 superpose termA termB result = 
-          foldl (changeBinding) result (fixBindedVars (listBindedVars (ReductionRule (termA,termA)) termB))
-superposeOnlyFirst :: Term -> Term -> [Term] -> Term
+          Just $ foldl (changeBinding) result (fixBindedVars (listBindedVars (ReductionRule (termA,termA)) termB))
+superposeOnlyFirst :: Term -> Term -> [Term] -> Maybe Term
 superposeOnlyFirst termB result (termA:terms) =
         if checkSuperposition termA termB
           then superpose termA termB result
           else superposeOnlyFirst termB result terms
 superposeOnlyFirst termB result [] =
-        superpose result termB result
+        Nothing
 
 
 fixBindedVars :: [(Term,Term)] -> [(Term,Term)]

@@ -145,9 +145,9 @@ bcheckSuperposition _ _ = False
 bcheckStructure :: Term -> Term -> Bool --propably ready
 bcheckStructure (Var aV) (Func bName bArgs) = True --ok
 bcheckStructure (Var aV) (Var bV) = True --ok
---bcheckStructure (Func aName aArgs) (Var bV) = True--False --propably
-bcheckStructure (Func aName (a:aArgs)) (Var bV) = True --False --True --propably!
-bcheckStructure (Func aName []) (Var bV) = True --False --propably!
+--bcheckStructure (Func aName aArgs) (Var bV) = True--False --propably  na dole chyba działa
+bcheckStructure (Func aName (a:aArgs)) (Var bV) = False --True --propably! False
+bcheckStructure (Func aName []) (Var bV) = True --False --propably! True
 bcheckStructure (Func aName aArgs) (Func bName bArgs) = -- ok
       if aName == bName && length aArgs == length bArgs
         then all (uncurry bcheckStructure) (zip aArgs bArgs)
@@ -185,8 +185,8 @@ betterCreateCriticalTerm (Func nameA argsA) (Func nameB argsB) =
               betterSuperposeArgs argsA (Func nameB argsB) result
 
 betterSuperpose :: Term -> Term -> Term -> Maybe Term
-betterSuperpose termA termB termResult =
-    Just $ bindingAtoB (fixedBindingBtoA (fixedBindingAtoB termResult))
+betterSuperpose termA termB termResult = --Just termA
+    Just $ bindingAtoB (fixedBindingBtoA (fixedBindingAtoB (termResult)))
     where 
     bindingAtoB :: Term -> Term
     bindingAtoB term = foldl (changeBinding) term (listBindedVars (ReductionRule (termA,termA)) termB) 

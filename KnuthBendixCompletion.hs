@@ -65,17 +65,32 @@ orderAxiom :: Axiom -> ReductionRule
 orderAxiom a = if orderTerms (lhs a) (rhs a) == GT then (ReductionRule (lhs a,rhs a)) else (ReductionRule (rhs a,lhs a))
 
 orderTerms :: Term -> Term -> Ordering
-orderTerms (Func name args) (Var v) = GT
-orderTerms (Var v) (Func name args) = LT
-orderTerms (Var a) (Var b) = EQ
-orderTerms (Func nameA (a:argsA)) (Func nameB (b:argsB)) =
-    if order == EQ
-      then orderTerms (Func nameA argsA) (Func nameB argsB)
-      else order
-    where order = orderTerms a b
-orderTerms (Func nameA []) (Func nameB []) = EQ
-orderTerms (Func nameA (a:args)) (Func nameB []) = GT
-orderTerms (Func nameA []) (Func nameB (b:args)) = LT
+orderTerms termA termB =
+    if result == EQ 
+      then checkVarCount termA termB
+      else result 
+    where
+    result = order termA termB
+    order :: Term -> Term -> Ordering
+    order (Func name args) (Var v) = GT
+    order (Var v) (Func name args) = LT
+    order (Var a) (Var b) = EQ
+    order (Func nameA (a:argsA)) (Func nameB (b:argsB)) =
+        if result == EQ
+          then order (Func nameA argsA) (Func nameB argsB)
+          else result
+        where result = order a b
+    order (Func nameA []) (Func nameB []) = EQ
+    order (Func nameA (a:args)) (Func nameB []) = GT
+    order (Func nameA []) (Func nameB (b:args)) = LT
+    checkVarCount :: Term -> Term -> Ordering
+    checkVarCount termA termB =
+       if (length.findVarsInTerm) termA > (length.findVarsInTerm) termB
+         then GT
+         else
+           if (length.findVarsInTerm) termA < (length.findVarsInTerm) termB
+             then LT
+             else EQ
 
 
 superposeRules :: ReductionRule -> ReductionRules -> Axioms -> Axioms
@@ -197,6 +212,8 @@ createCriticalTerm (Func nameA argsA) (Func nameB argsB) =
             else
               superposeArgs argsA (Func nameB argsB) result
 
+
+--write different
 superpose :: Term -> Term -> Term -> Maybe Term
 superpose termA termB termResult =
     Just $ bindingAtoB (fixedBindingBtoA (fixedBindingAtoB termResult))
@@ -261,7 +278,7 @@ reduceTerm (ReductionRule (Func ruleName ruleArgs,result)) (Func name args) =
     mapOnlyFirst :: (Term -> Term) -> [Term] -> [Term]
     mapOnlyFirst f [] = []
     mapOnlyFirst f (a:args) =
-      if a == b
+      if orderTerms a b == EQ --a == b
         then a:(mapOnlyFirst f args)
         else b:args
       where b = f a

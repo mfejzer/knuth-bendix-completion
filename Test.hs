@@ -15,12 +15,12 @@ tests = [reduceTerm (ReductionRule (translate "f x (f x y)",translate "g x")) (t
                Func "a" [Func "f" [Func "L" [Var "kloc"],Func "o" [Var "kloc"]],Func "g" [Var "e"]]))
              ,(reduceTerm   (ReductionRule (translate "f x x",translate "g x")) (translate "a (f (L kloc) (L kloc)) (f e e)") == ( 
                Func "a" [Func "g" [Func "L" [Var "kloc"]],Func "f" [Var "e",Var "e"]]))
-             ,(reduce (ReductionRules [(ReductionRule (translate "f x x",translate "g x"))]) (translate "a (f (L kloc) (L kloc)) (f e e)") ==(
+             ,(reduce ([(ReductionRule (translate "f x x",translate "g x"))]) (translate "a (f (L kloc) (L kloc)) (f e e)") ==(
                Func "a" [Func "g" [Func "L" [Var "kloc"]],Func "f" [Var "e",Var "e"]]))
              ,(renameVars (translate "a (f (f g h)) e") == (Func "a" [Func "f" [Func "f" [Var "v0",Var "v1"]],Var "v2"]))
              ,(renameVarsWithPrefix "prefix" (translate "a (f (f g h)) e") == (Func "a" [Func "f" [Func "f" [Var "prefixv0",Var "prefixv1"]],Var "prefixv2"]))
-             ,(reduce (ReductionRules [(ReductionRule (Func "f" [Var "v0",Func "f" [Var "v0",Var "v1"]],Func "g" [Var "v0"]))]) (translate "f a (f a b)") ==(Func "g" [Var "a"]))
-             ,(reduce (ReductionRules [(ReductionRule (Func "f" [Var "v0",Func "f" [Var "v0",Var "v1"]],Func "g" [Var "v0"]))]) (translate "f a (f b a)") == 
+             ,(reduce ([(ReductionRule (Func "f" [Var "v0",Func "f" [Var "v0",Var "v1"]],Func "g" [Var "v0"]))]) (translate "f a (f a b)") ==(Func "g" [Var "a"]))
+             ,(reduce ([(ReductionRule (Func "f" [Var "v0",Func "f" [Var "v0",Var "v1"]],Func "g" [Var "v0"]))]) (translate "f a (f b a)") == 
                (Func "f" [Var "a",Func "f" [Var "b",Var "a"]]))
              ,(renameVarsInReductionRule (ReductionRule (translate "f x (f x y)",translate "g x")) == 
                (ReductionRule (Func "f" [Var "v0",Func "f" [Var "v0",Var "v1"]],Func "g" [Var "v0"])))
@@ -32,27 +32,27 @@ tests = [reduceTerm (ReductionRule (translate "f x (f x y)",translate "g x")) (t
 --             ,createCriticalTerm  (translate "+ (+ x y) z") (translate "+ (- x) x") ==Func "+" [Func "+" [Func "-" [Var "x"],Var "x"],Var "z"]
 --             ,(createCriticalPair (ReductionRule (translate "+ (+ x y) z",translate "+ x (+ y z)")) (ReductionRule (translate "+ (- x) x",Func "zero" []))) ==
 --               Axiom (Func "+" [Func "-" [Var "v0"],Func "+" [Var "v0",Var "v1"]],Func "+" [Func "zero" [],Var "v1"])
-             ,findCriticalPair (ReductionRule (translate "+ (+ x y) z",translate "+ x (+ y z)")) (ReductionRule (translate "+ (- x) x",Func "zero" [])) (Axioms []) ==
-               Axioms [Axiom (Func "+" [Func "-" [Var "v0"],Func "+" [Var "v0",Var "v1"]],Func "+" [Func "zero" [],Var "v1"])]
+--             ,findCriticalPair (ReductionRule (translate "+ (+ x y) z",translate "+ x (+ y z)")) (ReductionRule (translate "+ (- x) x",Func "zero" [])) (Axioms []) ==
+--               Axioms [Axiom (Func "+" [Func "-" [Var "v0"],Func "+" [Var "v0",Var "v1"]],Func "+" [Func "zero" [],Var "v1"])]
 --             ,orderAxiom (createCriticalPair (ReductionRule (translate "+ (+ x y) z",translate "+ x (+ y z)")) (ReductionRule (translate "+ (- x) x",Func "zero" []))) ==
 --               ReductionRule (Func "+" [Func "-" [Var "v0"],Func "+" [Var "v0",Var "v1"]],Func "+" [Func "zero" [],Var "v1"])
-             ,findCriticalPair r3 r3 (Axioms []) == 
-               Axioms [Axiom (Func "+" [Var "v0",Var "v1"],Func "+" [Func "-" [Func "-" [Var "v0"]],Var "v1"])]
+--             ,findCriticalPair r3 r3 (Axioms []) == 
+--               Axioms [Axiom (Func "+" [Var "v0",Var "v1"],Func "+" [Func "-" [Func "-" [Var "v0"]],Var "v1"])]
              ]
 
 runReductionTests = and reductionTests
 reductionTests = 
-   [ findCriticalPair (r3) (r2) (Axioms []) == Axioms [Axiom (Func "+" [Func "-" [Var "v0"],Func "+" [Var "v0",Var "v1"]],Func "+" [Func "0" [],Var "v1"])],
-     findCriticalPair (r4) (r1) (Axioms []) == Axioms [Axiom (Var "v0",Func "+" [Func "-" [Func "0" []],Var "v0"])],
-     findCriticalPair (r4) (r2) (Axioms []) == Axioms [Axiom (Var "v0",Func "+" [Func "-" [Func "-" [Var "v0"]],Func "0" []])] ]
+   [ findCriticalPair (r3) (r2) ([]) == [Axiom (Func "+" [Func "-" [Var "v0"],Func "+" [Var "v0",Var "v1"]],Func "+" [Func "0" [],Var "v1"])],
+     findCriticalPair (r4) (r1) ([]) == [Axiom (Var "v0",Func "+" [Func "-" [Func "0" []],Var "v0"])],
+     findCriticalPair (r4) (r2) ([]) == [Axiom (Var "v0",Func "+" [Func "-" [Func "-" [Var "v0"]],Func "0" []])] ]
 
 groupAxioms = 
-    Axioms [Axiom (Func "+" [Func "0" [],Var "x"],Var "x"),
+    [Axiom (Func "+" [Func "0" [],Var "x"],Var "x"),
             Axiom (Func "+" [Func "-" [Var "x"],Var "x"],Func "0" []),
             Axiom (Func "+" [Func "+" [Var "x",Var "y"],Var "z"],Func "+" [Var "x",Func "+" [Var "y",Var "z"]])]
 
 strangeAxioms =
-    Axioms [Axiom (Func "*" [Func "e" [],Var "x"],Var "x"),
+    [Axiom (Func "*" [Func "e" [],Var "x"],Var "x"),
             Axiom (Func "*" [Var "x",Func "e" []],Var "x"),
             Axiom (Func "*" [Var "x", Var "x"],Func "e" []),
             Axiom (Func "*" [Func "*" [Var "x",Var "y"],Var "z"],Func "*" [Var "x",Func "*" [Var "y",Var "z"]])] 
@@ -76,20 +76,20 @@ r13 =  ReductionRule (Func "+" [Var "v0",Func "+" [Var "v1",Func "-" [Func "+" [
 r14 =  ReductionRule (Func "+" [Var "v0",Func "-"[Func "+" [Var "v0",Var "v1"]]],Var "v1")
 r15 =  ReductionRule (Func "-" [Func "+" [Var "v0",Var "v1"]],Func "+" [Func "-" [Var "v0"],Func "-" [Var "v1"]])
 
-debugKB :: (Axioms , ReductionRules) -> (Axioms,ReductionRules)
-debugKB (Axioms [],ReductionRules rules) = (Axioms [], ReductionRules rules)
-debugKB (Axioms axioms,ReductionRules rules) = 
+debugKB :: ([Axiom] , [ReductionRule]) -> ([Axiom],[ReductionRule])
+debugKB ([],rules) = ([],rules)
+debugKB (axioms,rules) = 
       if orderTerms (lhs normalisedAxiom) (rhs normalisedAxiom) /= EQ
         then 
-            (superposeRules rule (ReductionRules newRules) restAxioms,ReductionRules newRules)
-        else debugKB (restAxioms, ReductionRules rules)
-      where (axiom,restAxioms) = takeAxiom (Axioms axioms); 
-            normalisedAxiom = normaliseAxiom axiom (ReductionRules rules); 
+            (superposeRules rule newRules restAxioms,newRules)
+        else debugKB (restAxioms, rules)
+      where (axiom,restAxioms) = takeAxiom axioms; 
+            normalisedAxiom = normaliseAxiom axiom rules; 
             rule = renameVarsInReductionRuleWithPrefix "" (orderAxiom normalisedAxiom)
             newRules = rules++[rule]
 
-result :: Int -> (Axioms,ReductionRules)
-result 0 = (groupAxioms,ReductionRules [])
+result :: Int -> ([Axiom],[ReductionRule])
+result 0 = (groupAxioms,[])
 result n = debugKB (result (n-1))
 
 printResult n = do
@@ -101,27 +101,24 @@ printList [] = return ()
 printList (x:xs) =
    print x >> printList xs
 
-printRules (ReductionRules rules) = printList rules
-printAxioms (Axioms axioms) = printList axioms
+printRules rules = printList rules
+printAxioms axioms = printList axioms
 
-resultRules :: Int -> ReductionRules
+resultRules :: Int -> [ReductionRule]
 resultRules n = snd $ result n
-resultAxioms :: Int -> Axioms
+resultAxioms :: Int -> [Axiom]
 resultAxioms n = fst $ result n
 normaliseResultAxioms n = 
-   Axioms (map (\x-> normaliseAxiom x $ resultRules n) $ extractAxiom $ resultAxioms n) 
-   where 
-     extractAxiom (Axioms []) = []
-     extractAxiom (Axioms (a:axioms)) = a: (extractAxiom (Axioms axioms))
+   map (\x-> normaliseAxiom x $ resultRules n) $ resultAxioms n
 
 printResultNewAxioms n = 
-    printAxioms $ (superposeRules (head $ reverse $ getRules $ resultRules n) (ReductionRules $ getRules $ resultRules n) $ Axioms [])
+    printAxioms $ (superposeRules (head $ reverse $ resultRules n) (resultRules n) $ [])
 
 getRules (ReductionRules rules) = rules
 getRule (ReductionRule (rule,_)) = rule
 
-buggyCriticalPairR7R2 = findCriticalPair r7 r2 (Axioms [])
-buggyCriticalPairR2R7 = findCriticalPair r2 r7 (Axioms [])
+buggyCriticalPairR7R2 = findCriticalPair r7 r2 []
+buggyCriticalPairR2R7 = findCriticalPair r2 r7 []
 
 
 bfindCriticalPair :: ReductionRule -> ReductionRule -> Axioms -> Axioms

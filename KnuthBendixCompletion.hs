@@ -22,42 +22,42 @@ rhs :: Axiom -> Term
 rhs (Axiom (_,r)) = r
 
 --simple, todo: complicated
-takeAxiom :: Axioms -> (Axiom,Axioms)
-takeAxiom (Axioms (a:axioms)) = (a,Axioms axioms)
+takeAxiom :: [Axiom] -> (Axiom,[Axiom])
+takeAxiom (a:axioms) = (a,axioms)
 
 --ready
 kbCompletion :: Axioms -> ReductionRules
-kbCompletion (Axioms axioms) = kb (Axioms axioms) (ReductionRules []) --where
+kbCompletion (Axioms axioms) = ReductionRules $ (snd.kb) (axioms,[])
 
-kb :: Axioms -> ReductionRules -> ReductionRules
-kb (Axioms [])     (ReductionRules rules) = (ReductionRules rules)
-kb (Axioms axioms) (ReductionRules rules) = 
+kb :: ([Axiom],[ReductionRule]) -> ([Axiom],[ReductionRule])
+kb ([],rules) = ([],rules)
+kb (axioms,rules) = 
       if orderTerms (lhs normalisedAxiom) (rhs normalisedAxiom) /= EQ && (not $ elem rule rules)
         then 
-          kb (superposeRules rule (ReductionRules newRules) (Axioms axioms)) (ReductionRules newRules)
+          kb (superposeRules rule newRules axioms,newRules)
         else 
-          kb restAxioms (ReductionRules rules)
-      where (axiom,restAxioms) = takeAxiom (Axioms axioms); 
-            normalisedAxiom = normaliseAxiom axiom (ReductionRules rules); 
+          kb (restAxioms,rules)
+      where (axiom,restAxioms) = takeAxiom axioms; 
+            normalisedAxiom = normaliseAxiom axiom rules; 
             rule = renameVarsInReductionRuleWithPrefix "" (orderAxiom normalisedAxiom)
             newRules = rules++[rule]
 
-normaliseAxiom :: Axiom -> ReductionRules -> Axiom
+normaliseAxiom :: Axiom -> [ReductionRule] -> Axiom
 normaliseAxiom (Axiom (termA,termB)) rules = 
     (Axiom (reduceToNormalised rules termA,reduceToNormalised rules termB))
 
-reduceToNormalised :: ReductionRules -> Term -> Term
-reduceToNormalised (ReductionRules rules) term = 
+reduceToNormalised :: [ReductionRule] -> Term -> Term
+reduceToNormalised rules term = 
     if orderTerms result term == EQ
       then term
-      else reduceToNormalised (ReductionRules rules) result
-    where result = reduce (ReductionRules rules) term
+      else reduceToNormalised rules result
+    where result = reduce rules term
 
-reduce :: ReductionRules -> Term -> Term
-reduce (ReductionRules []) term = term
-reduce (ReductionRules (rule:rest)) term =
+reduce :: [ReductionRule] -> Term -> Term
+reduce [] term = term
+reduce (rule:rest) term =
     if orderTerms result term == EQ
-      then reduce (ReductionRules rest) term
+      then reduce rest term
       else result
     where result = reduceTerm rule term
 
@@ -93,18 +93,18 @@ orderTerms termA termB =
              else EQ
 
 
-superposeRules :: ReductionRule -> ReductionRules -> Axioms -> Axioms
-superposeRules (ReductionRule rule) (ReductionRules []) (Axioms axioms) = (Axioms axioms)
-superposeRules (ReductionRule rule) (ReductionRules (r:rules)) (Axioms axioms) =
-    superposeRules (ReductionRule rule) (ReductionRules rules) newAxioms where
-      newAxioms = findCriticalPair (ReductionRule rule) r (Axioms axioms)
+superposeRules :: ReductionRule -> [ReductionRule] -> [Axiom] -> [Axiom]
+superposeRules rule [] axioms = axioms
+superposeRules rule (r:rules) axioms =
+    superposeRules rule rules newAxioms where
+      newAxioms = findCriticalPair rule r axioms
 
 
-findCriticalPair :: ReductionRule -> ReductionRule -> Axioms -> Axioms
+findCriticalPair :: ReductionRule -> ReductionRule -> [Axiom] -> [Axiom]
 findCriticalPair ruleA ruleB axioms=
     find ruleB ruleA $ find ruleA ruleB axioms
     where
-    find :: ReductionRule -> ReductionRule -> Axioms -> Axioms
+    find :: ReductionRule -> ReductionRule -> [Axiom] -> [Axiom]
     find (ReductionRule (termA,resultA)) (ReductionRule (termB,resultB)) axioms =
         if checkCriticalPair renamedTermA renamedTermB
           then addCriticalPair (ReductionRule (renamedTermA,renamedResultA)) (ReductionRule (renamedTermB,renamedResultB)) axioms
@@ -155,16 +155,16 @@ checkSuperposition (Func nameA argsA) (Func nameB argsB) =
           else checkBindedVar (Var v,bindedTerm) rest
 checkSuperposition _ _ = False   
 
-addCriticalPair :: ReductionRule -> ReductionRule -> Axioms -> Axioms
-addCriticalPair ruleA ruleB (Axioms axioms) = 
-    add ruleA ruleB (Axioms axioms) (createCriticalPair ruleA ruleB)
+addCriticalPair :: ReductionRule -> ReductionRule -> [Axiom] -> [Axiom]
+addCriticalPair ruleA ruleB axioms = 
+    add ruleA ruleB axioms (createCriticalPair ruleA ruleB)
     where
-    add :: ReductionRule -> ReductionRule -> Axioms -> Maybe Axiom -> Axioms
-    add ruleA ruleB (Axioms axioms) (Nothing) = (Axioms axioms) 
-    add ruleA ruleB (Axioms axioms) (Just axiom) = 
+    add :: ReductionRule -> ReductionRule -> [Axiom] -> Maybe Axiom -> [Axiom]
+    add ruleA ruleB axioms (Nothing) = axioms 
+    add ruleA ruleB axioms (Just axiom) = 
       if not (elem axiom axioms)
-        then (Axioms (axioms++[axiom]))
-        else (Axioms axioms)
+        then (axioms++[axiom])
+        else axioms
 
 createCriticalPair :: ReductionRule -> ReductionRule -> Maybe Axiom
 createCriticalPair (ReductionRule (ruleA,resultA)) (ReductionRule (ruleB,resultB)) =

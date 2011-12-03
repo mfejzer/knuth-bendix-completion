@@ -428,7 +428,7 @@ takeBrackets text = tb text 0 where
     tb ('(':xs) 0     = tb xs 1 
     tb ('(':xs) n     = '(':tb xs (n+1)
     tb (')':xs) 1     = tb xs 0
-    tb (')':xs) (n+1) = ')':tb xs n
+    tb (')':xs) n     = ')':tb xs (n-1) 
     tb (x:xs)   n     = x:tb xs n
 
 
@@ -440,7 +440,7 @@ betterWords text = bw text [] 0 where
     bw ('(':xs) tmpWord n     = bw xs (tmpWord ++ ['(']) (n+1)
     bw (x:xs)   tmpWord 0     = bw xs (tmpWord ++ [x]) 0
     bw (')':xs) tmpWord 1     = bw xs tmpWord 0
-    bw (')':xs) tmpWord (n+1) = bw xs (tmpWord ++ [')']) n
+    bw (')':xs) tmpWord n = bw xs (tmpWord ++ [')']) (n-1)
     bw (x:xs)   tmpWord n     = bw xs (tmpWord ++ [x]) n
     bw []       tmpWord n     = [tmpWord]
 

@@ -90,7 +90,7 @@ debugKB (Axioms axioms,ReductionRules rules) =
 
 result :: Int -> (Axioms,ReductionRules)
 result 0 = (groupAxioms,ReductionRules [])
-result (n+1) = debugKB (result n)
+result n = debugKB (result (n-1))
 
 printResult n = do
     printAxioms a
@@ -124,6 +124,29 @@ buggyCriticalPairR7R2 = findCriticalPair r7 r2 (Axioms [])
 buggyCriticalPairR2R7 = findCriticalPair r2 r7 (Axioms [])
 
 
+bfindCriticalPair :: ReductionRule -> ReductionRule -> Axioms -> Axioms
+bfindCriticalPair ruleA ruleB axioms=
+    find ruleB ruleA $ find ruleA ruleB axioms
+    where
+    find :: ReductionRule -> ReductionRule -> Axioms -> Axioms
+    find (ReductionRule (termA,resultA)) (ReductionRule (termB,resultB)) axioms =
+        if bcheckCriticalPair renamedTermA renamedTermB
+          then baddCriticalPair (ReductionRule (renamedTermA,renamedResultA)) (ReductionRule (renamedTermB,renamedResultB)) axioms
+          else axioms
+      where (ReductionRule (renamedTermA,renamedResultA)) = renameVarsInReductionRuleWithPrefix "l" (ReductionRule (termA,resultA))
+            (ReductionRule (renamedTermB,renamedResultB)) = renameVarsInReductionRuleWithPrefix "r" (ReductionRule (termB,resultB))
+
+baddCriticalPair :: ReductionRule -> ReductionRule -> Axioms -> Axioms
+baddCriticalPair ruleA ruleB (Axioms axioms) = 
+    add ruleA ruleB (Axioms axioms) (createCriticalPair ruleA ruleB)
+    where
+    add :: ReductionRule -> ReductionRule -> Axioms -> Maybe Axiom -> Axioms
+    add ruleA ruleB (Axioms axioms) (Nothing) = (Axioms axioms) 
+    add ruleA ruleB (Axioms axioms) (Just axiom) = 
+      if not (elem axiom axioms)
+        then (Axioms (axioms++[axiom]))
+        else (Axioms axioms)
+
 bcheckCriticalPair :: Term -> Term -> Bool 
 bcheckCriticalPair (Func nameA argsA) (Func nameB argsB) =
     if orderTerms (Func nameA argsA) (Func nameB argsB) == EQ
@@ -132,7 +155,7 @@ bcheckCriticalPair (Func nameA argsA) (Func nameB argsB) =
       else
         if bcheckSuperposition (Func nameA argsA) (Func nameB argsB) 
           then True
-          else any (\a -> bcheckSuperposition a (Func nameB argsB)) argsA
+          else any (\a -> bcheckCriticalPair a (Func nameB argsB)) argsA
 bcheckCriticalPair _ _ = False 
 
 
@@ -150,8 +173,9 @@ bcheckStructure (Func aName (a:aArgs)) (Var bV) = False --True --propably! False
 bcheckStructure (Func aName []) (Var bV) = True --False --propably! True
 bcheckStructure (Func aName aArgs) (Func bName bArgs) = -- ok
       if aName == bName && length aArgs == length bArgs
-        then all (uncurry bcheckStructure) (zip aArgs bArgs)
+        then (all (uncurry bcheckStructure) (zip aArgs bArgs) || all (uncurry bcheckStructure) (zip bArgs aArgs))
         else False
+--wrong!
 bcheckBindedVars :: [(Term,Term)] -> Bool
 bcheckBindedVars [] = True
 bcheckBindedVars ((Var v,term):rest) =

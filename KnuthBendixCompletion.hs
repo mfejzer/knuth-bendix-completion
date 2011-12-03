@@ -4,16 +4,22 @@ data Term = Func String [Term] | Var String
     deriving (Eq, Ord, Read, Show)
 
 data ReductionRule = ReductionRule (Term,Term)
-    deriving (Eq, Ord, Read, Show)
+    deriving (Eq, Ord, Read)
 
 data Axiom = Axiom (Term,Term)
-    deriving (Eq, Ord, Read, Show)
+    deriving (Eq, Ord, Read)
 
 data ReductionRules = ReductionRules [ReductionRule]
     deriving (Eq, Ord, Read, Show)
 
 data Axioms = Axioms [Axiom]
     deriving (Eq, Ord, Read, Show)
+
+instance Show ReductionRule where
+    show (ReductionRule (rule,result)) = show rule ++ " -> " ++ show result
+
+instance Show Axiom where
+    show (Axiom (l,r)) = "Axiom: " ++ show l ++ " <-> " ++ show r
 
 lhs :: Axiom -> Term
 lhs (Axiom (l,_)) = l

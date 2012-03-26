@@ -72,7 +72,8 @@ reduce (rule:rest) term =
     if orderTerms result term == EQ
       then reduce rest term
       else result
-    where result = reduceTerm rule term
+    where result = reduceTerm renamedRule term
+          renamedRule = renameVarsInReductionRuleWithPrefix "r" rule 
 
 orderAxiom :: Axiom -> ReductionRule 
 orderAxiom a = if orderTerms (lhs a) (rhs a) == GT then (ReductionRule (lhs a,rhs a)) else (ReductionRule (rhs a,lhs a))

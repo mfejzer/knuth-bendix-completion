@@ -16,10 +16,10 @@ data Axioms = Axioms [Axiom]
     deriving (Eq, Ord, Read, Show)
 
 instance Show ReductionRule where
-    show (ReductionRule (rule,result)) = show rule ++ " -> " ++ show result
+    show (ReductionRule (rule,result)) = show rule ++ " -> " ++ show result ++ "\n"
 
 instance Show Axiom where
-    show (Axiom (l,r)) = "Axiom: " ++ show l ++ " <-> " ++ show r
+    show (Axiom (l,r)) = "Axiom: " ++ show l ++ " <-> " ++ show r ++ "\n"
 
 lhs :: Axiom -> Term
 lhs (Axiom (l,_)) = l
@@ -33,17 +33,24 @@ takeAxiom (a:axioms) = (a,axioms)
 
 --ready
 kbCompletion :: Axioms -> ReductionRules
-kbCompletion (Axioms axioms) = ReductionRules $ (snd.kb) (axioms,[])
+kbCompletion (Axioms axioms) = kbc (axioms,[])
+    where
+    kbc ([],rules) = ReductionRules rules
+    kbc (axioms,rules) = (kbc.kb) (axioms,rules)
+--ReductionRules $ (snd.kb) (axioms,[])
+
+apply g 1 = g
+apply g n = g . (apply g (n-1))
 
 kb :: ([Axiom],[ReductionRule]) -> ([Axiom],[ReductionRule])
 kb ([],rules) = ([],rules)
 kb (axioms,rules) = 
       if orderTerms (lhs normalisedAxiom) (rhs normalisedAxiom) /= EQ && (not $ elem rule rules)
         then 
-          kb (superposeRules rule newRules axioms,newRules)
+          (superposeRules rule newRules restAxioms,newRules)
         else 
-          kb (restAxioms,rules)
-      where (axiom,restAxioms) = takeAxiom axioms; 
+          (restAxioms,rules)
+      where (axiom,restAxioms) = takeAxiom axioms;
             normalisedAxiom = normaliseAxiom axiom rules; 
             rule = renameVarsInReductionRuleWithPrefix "" (orderAxiom normalisedAxiom)
             newRules = rules++[rule]
@@ -140,7 +147,7 @@ checkSuperposition (Func nameA argsA) (Func nameB argsB) =
     checkStructure :: Term -> Term -> Bool 
     checkStructure (Var aV) (Func bName bArgs) = True 
     checkStructure (Var aV) (Var bV) = True 
-    checkStructure (Func aName (a:aArgs)) (Var bV) = True --propably!
+    checkStructure (Func aName (a:aArgs)) (Var bV) = False --True --propably!
     checkStructure (Func aName []) (Var bV) = True --propably!
     checkStructure (Func aName aArgs) (Func bName bArgs) = 
       if aName == bName && length aArgs == length bArgs

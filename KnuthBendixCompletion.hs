@@ -47,13 +47,30 @@ kb ([],rules) = ([],rules)
 kb (axioms,rules) = 
       if orderTerms (lhs normalisedAxiom) (rhs normalisedAxiom) /= EQ && (not $ elem rule rules)
         then 
-          (superposeRules rule newRules restAxioms,newRules)
+          (superposeRules rule newRules restAxioms, newRules)
         else 
           (restAxioms,rules)
       where (axiom,restAxioms) = takeAxiom axioms;
             normalisedAxiom = normaliseAxiom axiom rules; 
             rule = renameVarsInReductionRuleWithPrefix "" (orderAxiom normalisedAxiom)
-            newRules = rules++[rule]
+            newRules = makeNewRules rule rules
+
+
+makeNewRules :: ReductionRule -> [ReductionRule] -> [ReductionRule]
+makeNewRules rule rules = mnr rule rules []
+    where 
+    mnr :: ReductionRule -> [ReductionRule] -> [ReductionRule] -> [ReductionRule]
+    mnr rule [] acc = reverse $ (rule:acc)
+    mnr rule (r:rules) acc = mnr rule rules (newRule:acc)
+      where newRule = reduceRule rule r
+
+reduceRule :: ReductionRule -> ReductionRule -> ReductionRule
+reduceRule reductingRule (ReductionRule (rule,result)) =
+    if orderTerms reducedRule reducedResult /= LT
+      then ReductionRule (reducedRule,reducedResult)
+      else ReductionRule (reducedResult,reducedRule)
+    where reducedRule = reduceTerm reductingRule rule
+          reducedResult = reduceTerm reductingRule result
 
 normaliseAxiom :: Axiom -> [ReductionRule] -> Axiom
 normaliseAxiom (Axiom (termA,termB)) rules = 

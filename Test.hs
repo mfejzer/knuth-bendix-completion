@@ -75,6 +75,9 @@ r12 =  ReductionRule (Func "+" [Var "v0",Func "+" [Func "-" [Var "v0"],Var "v1"]
 r13 =  ReductionRule (Func "+" [Var "v0",Func "+" [Var "v1",Func "-" [Func "+" [Var "v0",Var "v1"]]]],Func "0" [])
 r14 =  ReductionRule (Func "+" [Var "v0",Func "-"[Func "+" [Var "v0",Var "v1"]]],Var "v1")
 r15 =  ReductionRule (Func "-" [Func "+" [Var "v0",Var "v1"]],Func "+" [Func "-" [Var "v0"],Func "-" [Var "v1"]])
+allRules = [r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13,r14,r15]
+
+y n = (apply kb n) (groupAxioms,[])
 
 debugKB :: ([Axiom] , [ReductionRule]) -> ([Axiom],[ReductionRule])
 debugKB ([],rules) = ([],rules)
@@ -116,9 +119,6 @@ printResultNewAxioms n =
 
 getRules (ReductionRules rules) = rules
 getRule (ReductionRule (rule,_)) = rule
-
-buggyCriticalPairR7R2 = findCriticalPair r7 r2 []
-buggyCriticalPairR2R7 = findCriticalPair r2 r7 []
 
 
 bfindCriticalPair :: ReductionRule -> ReductionRule -> Axioms -> Axioms

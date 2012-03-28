@@ -61,14 +61,20 @@ makeNewRules rule rules = mnr rule rules []
     where 
     mnr :: ReductionRule -> [ReductionRule] -> [ReductionRule] -> [ReductionRule]
     mnr rule [] acc = reverse $ (rule:acc)
-    mnr rule (r:rules) acc = mnr rule rules (newRule:acc)
+    mnr rule (r:rules) acc = mnr rule rules $ add newRule acc
       where newRule = reduceRule rule r
+            add :: (Maybe ReductionRule) -> [ReductionRule] -> [ReductionRule]
+            add Nothing acc = acc
+            add (Just rule) acc = if elem rule acc then acc else (rule:acc)
 
-reduceRule :: ReductionRule -> ReductionRule -> ReductionRule
+reduceRule :: ReductionRule -> ReductionRule -> Maybe ReductionRule
 reduceRule reductingRule (ReductionRule (rule,result)) =
-    if orderTerms reducedRule reducedResult /= LT
-      then ReductionRule (reducedRule,reducedResult)
-      else ReductionRule (reducedResult,reducedRule)
+    if orderTerms reducedRule reducedResult /= EQ
+      then
+      if orderTerms reducedRule reducedResult /= LT
+        then Just (ReductionRule (reducedRule,reducedResult))
+        else Just (ReductionRule (reducedResult,reducedRule))
+      else Nothing
     where reducedRule = reduceTerm reductingRule rule
           reducedResult = reduceTerm reductingRule result
 
@@ -165,7 +171,7 @@ checkSuperposition (Func nameA argsA) (Func nameB argsB) =
     checkStructure :: Term -> Term -> Bool 
     checkStructure (Var aV) (Func bName bArgs) = True 
     checkStructure (Var aV) (Var bV) = True 
-    checkStructure (Func aName (a:aArgs)) (Var bV) = False --True --propably!
+    checkStructure (Func aName (a:aArgs)) (Var bV) = False --True --propably! False -> r6, r8; True -> r13
     checkStructure (Func aName []) (Var bV) = True --propably!
     checkStructure (Func aName aArgs) (Func bName bArgs) = 
       if aName == bName && length aArgs == length bArgs

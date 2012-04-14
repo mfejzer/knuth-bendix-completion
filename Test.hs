@@ -44,7 +44,21 @@ runReductionTests = and reductionTests
 reductionTests = 
    [ findCriticalPair (r3) (r2) ([]) == [Axiom (Func "+" [Func "-" [Var "v0"],Func "+" [Var "v0",Var "v1"]],Func "+" [Func "0" [],Var "v1"])],
      findCriticalPair (r4) (r1) ([]) == [Axiom (Var "v0",Func "+" [Func "-" [Func "0" []],Var "v0"])],
-     findCriticalPair (r4) (r2) ([]) == [Axiom (Var "v0",Func "+" [Func "-" [Func "-" [Var "v0"]],Func "0" []])] ]
+     findCriticalPair (r4) (r2) ([]) == [Axiom (Var "v0",Func "+" [Func "-" [Func "-" [Var "v0"]],Func "0" []])],
+     findCriticalPair (r4) (r4) ([]) == [Axiom (Func "+" [Var "v0",Var "v1"],Func "+" [Func "-" [Func "-" [Var "v0"]],Var "v1"])],
+     findCriticalPair r8 r2 [] == [Axiom (Func "-" [Func "0" []], Func "0" []),
+                                   Axiom (Func "0" [], Func "-" [Func "0" []])],
+     findCriticalPair r8 r7 [] == [Axiom (Func "-" [Func "-" [Var "v0"]], Func "+" [Var "v0",Func "0" []]),
+                                   Axiom (Func "+" [Var "v0",Func "0" []], Func "-" [Func "-" [Var "v0"]])],
+     findCriticalPair r7 r2 [] == [Axiom (Func "0" [], Func "+" [Var "v0",Func "-" [Var "v0"]])],
+     findCriticalPair r7 r4 [] == [Axiom (Func "+" [Var "v0",Func "+" [Func "-" [Var "v0"],Var "v1"]], Var "v1"),
+                                   Axiom (Var "v1", Func "+" [Var "v0",Func "+" [Func "-" [Var "v0"],Var "v1"]])],
+     findCriticalPair r3 r11 [] == [Axiom (Func "+" [Var "v0",Func "+" [Var "v0",Func "-" [Func "+" [Var "v0",Var "v0"]]]], Func "0" []),
+                                    Axiom (Func "0" [], Func "+" [Var "v0",Func "+" [Var "v1",Func "-" [Func "+" [Var "v0",Var "v1"]]]])],
+     findCriticalPair r4 r13 [] == [Axiom (Func "+" [Var "v1",Func "-" [Func "+" [Var "v0",Var "v1"]]],Func "+" [Func "-" [Var "v0"],Func "0" []]),
+                                    Axiom (Func "0" [],Func "+" [Func "-" [Var "v0"],Func "+" [Func "+" [Var "v0",Var "v1"],Func "-" [Var "v1"]]])],
+     findCriticalPair r4 r14 [] == [Axiom (Func "-" [Func "+" [Var "v0",Var "v1"]], Func "+" [Func "-" [Var "v0"],Func "-" [Var "v1"]])]
+   ]
 
 groupAxioms = 
     [Axiom (Func "+" [Func "0" [],Var "x"],Var "x"),
@@ -72,7 +86,7 @@ r10 =  ReductionRule (Func "-" [Func "-" [Var "v0"]],Var "v0")
 r11 =  ReductionRule (Func "+" [Var "v0",Func "-" [Var "v0"]],Func "0" [])
 r12 =  ReductionRule (Func "+" [Var "v0",Func "+" [Func "-" [Var "v0"],Var "v1"]],Var "v1")
 r13 =  ReductionRule (Func "+" [Var "v0",Func "+" [Var "v1",Func "-" [Func "+" [Var "v0",Var "v1"]]]],Func "0" [])
-r14 =  ReductionRule (Func "+" [Var "v0",Func "-"[Func "+" [Var "v0",Var "v1"]]],Var "v1")
+r14 =  ReductionRule (Func "+" [Var "v0",Func "-"[Func "+" [Var "v0",Var "v1"]]],Func "-" [Var "v1"])
 r15 =  ReductionRule (Func "-" [Func "+" [Var "v0",Var "v1"]],Func "+" [Func "-" [Var "v0"],Func "-" [Var "v1"]])
 allRules = [r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13,r14,r15]
 

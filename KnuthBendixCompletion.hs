@@ -9,11 +9,8 @@ data ReductionRule = ReductionRule (Term,Term)
 data Axiom = Axiom (Term,Term)
     deriving (Eq, Ord, Read)
 
-data ReductionRules = ReductionRules [ReductionRule]
-    deriving (Eq, Ord, Read, Show)
-
-data Axioms = Axioms [Axiom]
-    deriving (Eq, Ord, Read, Show)
+type ReductionRules = [ReductionRule]
+type Axioms = [Axiom]
 
 instance Show ReductionRule where
     show (ReductionRule (rule,result)) = show rule ++ " -> " ++ show result ++ "\n"
@@ -33,11 +30,10 @@ takeAxiom (a:axioms) = (a,axioms)
 
 --ready
 kbCompletion :: Axioms -> ReductionRules
-kbCompletion (Axioms axioms) = kbc (axioms,[])
+kbCompletion axioms = kbc (axioms,[])
     where
-    kbc ([],rules) = ReductionRules rules
+    kbc ([],rules) = rules
     kbc (axioms,rules) = (kbc.kb) (axioms,rules)
---ReductionRules $ (snd.kb) (axioms,[])
 
 apply g 1 = g
 apply g n = g . (apply g (n-1))
@@ -138,7 +134,7 @@ superposeRules rule (r:rules) axioms =
 
 
 findCriticalPair :: ReductionRule -> ReductionRule -> [Axiom] -> [Axiom]
-findCriticalPair ruleA ruleB axioms=
+findCriticalPair ruleA ruleB axioms =
     find ruleB ruleA $ find ruleA ruleB axioms
     where
     find :: ReductionRule -> ReductionRule -> [Axiom] -> [Axiom]
@@ -158,7 +154,7 @@ checkCriticalPair (Func nameA argsA) (Func nameB argsB) =
       else
         if checkSuperposition (Func nameA argsA) (Func nameB argsB) 
           then True
-          else any (\a -> checkSuperposition a (Func nameB argsB)) argsA
+          else any (\a -> checkCriticalPair a (Func nameB argsB)) argsA
 checkCriticalPair _ _ = False 
 
 
@@ -378,11 +374,11 @@ checkRuleInTerm (ReductionRule (Func ruleFuncName ruleFuncArgs,result)) (Func na
     
 
 isReducable :: ReductionRules -> Term -> Bool
-isReducable (ReductionRules []) t = False
-isReducable (ReductionRules (rule:rules)) t =
+isReducable [] t = False
+isReducable (rule:rules) t =
     if isR rule t 
       then True
-      else isReducable (ReductionRules rules) t
+      else isReducable rules t
     where
     isR :: ReductionRule -> Term -> Bool
     isR (ReductionRule (Func rFuncName rFuncArgs, result)) (Var v) = False

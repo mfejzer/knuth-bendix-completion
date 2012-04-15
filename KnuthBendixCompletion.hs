@@ -167,7 +167,7 @@ checkSuperposition (Func nameA argsA) (Func nameB argsB) =
     checkStructure :: Term -> Term -> Bool 
     checkStructure (Var aV) (Func bName bArgs) = True 
     checkStructure (Var aV) (Var bV) = True 
-    checkStructure (Func aName (a:aArgs)) (Var bV) = False --True --propably! False -> r6, r8; True -> r13
+    checkStructure (Func aName (a:aArgs)) (Var bV) = True --False --True --propably! False -> r6, r8; True -> r13
     checkStructure (Func aName []) (Var bV) = True --propably!
     checkStructure (Func aName aArgs) (Func bName bArgs) = 
       if aName == bName && length aArgs == length bArgs
@@ -190,31 +190,31 @@ checkSuperposition _ _ = False
 
 addCriticalPair :: ReductionRule -> ReductionRule -> [Axiom] -> [Axiom]
 addCriticalPair ruleA ruleB axioms = 
-    add ruleA ruleB axioms (createCriticalPair ruleA ruleB)
+    add axioms (createCriticalPair ruleA ruleB)
     where
-    add :: ReductionRule -> ReductionRule -> [Axiom] -> Maybe Axiom -> [Axiom]
-    add ruleA ruleB axioms (Nothing) = axioms 
-    add ruleA ruleB axioms (Just axiom) = 
-      if not (elem axiom axioms)
-        then (axioms++[axiom])
-        else axioms
+    add :: [Axiom] -> [Axiom] -> [Axiom]
+    add axioms [] = axioms
+    add axioms (newAxiom:newAxioms) = 
+      if not (elem newAxiom axioms)
+        then add (axioms++[newAxiom]) newAxioms
+        else add axioms newAxioms
 
-createCriticalPair :: ReductionRule -> ReductionRule -> Maybe Axiom
+createCriticalPair :: ReductionRule -> ReductionRule -> [Axiom]
 createCriticalPair (ReductionRule (ruleA,resultA)) (ReductionRule (ruleB,resultB)) =
     createCritical (ReductionRule (ruleA,resultA)) (ReductionRule (ruleB,resultB)) (createCriticalTerm ruleA ruleB)
     where
-    createCritical :: ReductionRule -> ReductionRule -> Maybe Term -> Maybe Axiom
-    createCritical _ _ Nothing = Nothing
-    createCritical (ReductionRule (ruleA,resultA)) (ReductionRule (ruleB,resultB)) (Just (Func name args)) = 
+    createCritical :: ReductionRule -> ReductionRule -> [Term] -> [Axiom]
+    createCritical _ _ [] = []
+    createCritical (ReductionRule (ruleA,resultA)) (ReductionRule (ruleB,resultB)) ((Func name args):rest) = 
       if orderTerms ruleA ruleB /= EQ
         then
           if (orderTerms (Func rname rargs) reductionA /= EQ && orderTerms (Func rname rargs) reductionB /= EQ ) 
-            then Just (Axiom (reductionA,reductionB))
-            else Nothing
+            then (Axiom (reductionA,reductionB)):createRest
+            else createRest
         else
           if (orderTerms (Func rname rargs) reductionA /= EQ && orderTerms (Func rname rargs) reductionRecB /= EQ ) 
-            then Just (Axiom (reductionA,reductionRecB)) 
-            else Nothing
+            then (Axiom (reductionA,reductionRecB)):createRest
+            else createRest
       where 
       (Func rname rargs) = renameVars (Func name args)
       reductionA = reduceTerm (ReductionRule (ruleA,resultA)) (Func rname rargs)
@@ -227,13 +227,14 @@ createCriticalPair (ReductionRule (ruleA,resultA)) (ReductionRule (ruleB,resultB
           then a:(mapOnlyFirst f args)
           else b:args
         where b = f a
+      createRest = createCritical (ReductionRule (ruleA,resultA)) (ReductionRule (ruleB,resultB)) rest
 
 --better
-createCriticalTerm :: Term -> Term -> Maybe Term
+createCriticalTerm :: Term -> Term -> [Term]
 createCriticalTerm (Func nameA argsA) (Func nameB argsB) = 
     create (Func nameA argsA) (Func nameB argsB) (Func nameA argsA)
     where
-    create :: Term -> Term -> Term -> Maybe Term
+    create :: Term -> Term -> Term ->[Term]
     create (Func nameA argsA) (Func nameB argsB) result = 
       if orderTerms (Func nameA argsA) (Func nameB argsB) == EQ
         then 
@@ -241,15 +242,15 @@ createCriticalTerm (Func nameA argsA) (Func nameB argsB) =
         else
           if checkSuperposition (Func nameA argsA) (Func nameB argsB) 
             then
-              superpose (Func nameA argsA) (Func nameB argsB) result
+              (superpose (Func nameA argsA) (Func nameB argsB) result):(superposeArgs argsA (Func nameB argsB) result)
             else
               superposeArgs argsA (Func nameB argsB) result
 
 
 --write different
-superpose :: Term -> Term -> Term -> Maybe Term
+superpose :: Term -> Term -> Term -> Term
 superpose termA termB termResult =
-    Just $ bindingAtoB (fixedBindingBtoA (fixedBindingAtoB termResult))
+    bindingAtoB (fixedBindingBtoA (fixedBindingAtoB termResult))
     where 
     bindingAtoB :: Term -> Term
     bindingAtoB term = foldl (changeBinding) term (listBindedVars (ReductionRule (termA,termA)) termB) 
@@ -266,16 +267,16 @@ fix ((Var a,Var b):rest) = fix rest
 fix ((Var v,Func name args):rest) = (Var v,Func name args):(fix rest)
 fix [] = []
 
-superposeArgs :: [Term] -> Term -> Term -> Maybe Term 
+superposeArgs :: [Term] -> Term -> Term -> [Term]
 superposeArgs ((Func nameA argsA):terms) termB termResult = 
     if checkSuperposition (Func nameA argsA) termB
       then 
-        superpose (Func nameA argsA) termB termResult
+        (superpose (Func nameA argsA) termB termResult):(superposeArgs terms termB termResult)
       else
         superposeArgs (terms++argsA) termB termResult
 superposeArgs ((Var a):terms) termB termResult = 
     superposeArgs terms termB termResult
-superposeArgs [] termB termResult = Nothing
+superposeArgs [] termB termResult = []
 
 --end better
 

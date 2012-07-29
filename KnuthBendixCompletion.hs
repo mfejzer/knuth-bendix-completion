@@ -1,4 +1,6 @@
 module KnuthBendixCompletion where
+import Data.List(sort)
+import Data.Tree
 
 data Term = Func String [Term] | Var String
     deriving (Eq, Ord, Read, Show)
@@ -7,7 +9,7 @@ data ReductionRule = ReductionRule (Term,Term)
     deriving (Eq, Ord, Read)
 
 data Axiom = Axiom (Term,Term)
-    deriving (Eq, Ord, Read)
+    deriving (Eq, Read)
 
 type ReductionRules = [ReductionRule]
 type Axioms = [Axiom]
@@ -18,6 +20,18 @@ instance Show ReductionRule where
 instance Show Axiom where
     show (Axiom (l,r)) = "Axiom: " ++ show l ++ " <-> " ++ show r ++ "\n"
 
+instance Ord Axiom where
+    (<) axiomA axiomB = (maxLength axiomA) < (maxLength axiomB)
+    (<=) axiomA axiomB = (maxLength axiomA) <= (maxLength axiomB)
+    (>) axiomA axiomB = (maxLength axiomA) > (maxLength axiomB)
+    (>=) axiomA axiomB = (maxLength axiomA) >= (maxLength axiomB)
+
+maxLength :: Axiom -> Int
+maxLength axiom = max ((getLength.lhs) axiom) ((getLength.rhs) axiom)
+
+getLength :: Term -> Int	
+getLength = length.findVarsInTerm 
+
 lhs :: Axiom -> Term
 lhs (Axiom (l,_)) = l
 
@@ -26,7 +40,9 @@ rhs (Axiom (_,r)) = r
 
 --simple, todo: complicated
 takeAxiom :: [Axiom] -> (Axiom,[Axiom])
-takeAxiom (a:axioms) = (a,axioms)
+takeAxiom axioms = (head sortedAxioms, tail sortedAxioms)
+    where
+    sortedAxioms = axioms--List.sort axioms
 
 --ready
 kbCompletion :: Axioms -> ReductionRules
@@ -478,3 +494,10 @@ betterWords text = bw text [] 0 where
     bw (x:xs)   tmpWord n     = bw xs (tmpWord ++ [x]) n
     bw []       tmpWord n     = [tmpWord]
 
+
+drawTerm :: Term -> String
+drawTerm term = drawTree.makeTree $ term
+
+makeTree :: Term -> Tree String
+makeTree (Func name args) = Node name (map makeTree args)
+makeTree (Var name) = Node name []

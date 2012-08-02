@@ -1,5 +1,5 @@
-module KnuthBendixCompletion where
-import Data.List(sort)
+module KnuthBendixCompletion.Algorithm where
+import Data.List (sort)
 import Data.Tree
 
 data Term = Func String [Term] | Var String

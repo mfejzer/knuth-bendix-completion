@@ -3,7 +3,7 @@ module Main where
 import Control.Monad
 import Control.Monad.Trans (lift, liftIO)
 import Data.Tree
-import DiagramWrapper (generateTreeDiagram)
+import DiagramWrapper
 import Graphics.Rendering.Diagrams.Core
 import Happstack.Server (asContentType, dir, look, nullConf, ok, Response, serveFile, ServerPart, simpleHTTP, toResponse)
 import KnuthBendixCompletion.Algorithm
@@ -23,7 +23,7 @@ generatePart :: ServerPart Response
 generatePart =
 	do 
 		name <- look "name"
-		(liftIO $ generateTreeDiagram (translateName name) t1)
+		(liftIO $ generateAxiomDiagram (translateName name) ((head.tail) groupAxioms))
 		serveFile (asContentType "image/png") (translateName name)
 
 notImplemented = ok $ toResponse $ "Not implemented yet"

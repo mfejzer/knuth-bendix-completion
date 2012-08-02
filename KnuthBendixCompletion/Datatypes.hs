@@ -26,6 +26,9 @@ instance Ord Axiom where
     (>) axiomA axiomB = (maxLength axiomA) > (maxLength axiomB)
     (>=) axiomA axiomB = (maxLength axiomA) >= (maxLength axiomB)
 
+getRule (ReductionRule (rule,_)) = rule
+getResult (ReductionRule (_,result)) = result
+
 
 maxLength :: Axiom -> Int
 maxLength axiom = max ((getLength.lhs) axiom) ((getLength.rhs) axiom)

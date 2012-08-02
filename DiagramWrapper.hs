@@ -8,6 +8,10 @@ import Diagrams.Backend.Cairo.Internal
 import Graphics.Rendering.Diagrams.Core
 import KnuthBendixCompletion.Datatypes
 
+renderReductionRule reductionRule = ((makeAndRender.getRule) reductionRule) ||| ((makeAndRender.getResult) reductionRule) 
+renderAxiom axiom = ((makeAndRender.lhs) axiom) ||| ((makeAndRender.rhs) axiom) 
+
+makeAndRender term = (renderStandardTree.makeTree) term
 
 makeTree :: Term -> Tree String
 makeTree (Func name args) = Node name (map makeTree args)
@@ -17,10 +21,16 @@ makeTree (Var name) = Node name []
 renderStandardTree tree =
 	renderTree ((<> circle 1 # fc white) . text . show)
 		(~~)
-		(symmLayout' with { slHSep = 4, slVSep = 4 } tree)
+		(symmLayout' with { slHSep = 2, slVSep = 2 } tree)
+
 
 saveDiagram diagram fileName = renderDia Cairo (CairoOptions fileName (Width 250) PNG) diagram
 
+
 generateTreeDiagram name tree = fst(saveDiagram (renderStandardTree tree) name)
 
+generateReductionRuleDiagram name reductionRule = generate name (renderReductionRule reductionRule)
+generateAxiomDiagram name axiom = generate name (renderAxiom axiom)
+
+generate name renderer = fst(saveDiagram renderer name)
 

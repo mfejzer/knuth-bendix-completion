@@ -7,7 +7,9 @@ import DiagramWrapper (generateTreeDiagram)
 import Graphics.Rendering.Diagrams.Core
 import Happstack.Server (asContentType, dir, look, nullConf, ok, Response, serveFile, ServerPart, simpleHTTP, toResponse)
 import KnuthBendixCompletion.Algorithm
+import KnuthBendixCompletion.Datatypes
 import KnuthBendixCompletion.Test
+import Parser
 
 t1 = Node 'A' [Node 'B' (map lf "CDE"), Node 'F' [Node 'G' (map lf "HIJ")]]
 

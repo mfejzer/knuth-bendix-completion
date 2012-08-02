@@ -1,5 +1,7 @@
 module KnuthBendixCompletion.Test where
 import KnuthBendixCompletion.Algorithm
+import KnuthBendixCompletion.Datatypes
+import Parser
 
 runTests = and tests
 tests = [reduceTerm (ReductionRule (translate "f x (f x y)",translate "g x")) (translate "a (f (f g h)) e") == (Func "a" [Func "f" [Func "f" [Var "g",Var "h"]],Var "e"])

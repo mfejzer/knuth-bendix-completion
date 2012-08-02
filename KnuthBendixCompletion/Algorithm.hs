@@ -1,48 +1,6 @@
 module KnuthBendixCompletion.Algorithm where
+import KnuthBendixCompletion.Datatypes
 import Data.List (sort)
-import Data.Tree
-
-data Term = Func String [Term] | Var String
-    deriving (Eq, Ord, Read, Show)
-
-data ReductionRule = ReductionRule (Term,Term)
-    deriving (Eq, Ord, Read)
-
-data Axiom = Axiom (Term,Term)
-    deriving (Eq, Read)
-
-type ReductionRules = [ReductionRule]
-type Axioms = [Axiom]
-
-instance Show ReductionRule where
-    show (ReductionRule (rule,result)) = show rule ++ " -> " ++ show result ++ "\n"
-
-instance Show Axiom where
-    show (Axiom (l,r)) = "Axiom: " ++ show l ++ " <-> " ++ show r ++ "\n"
-
-instance Ord Axiom where
-    (<) axiomA axiomB = (maxLength axiomA) < (maxLength axiomB)
-    (<=) axiomA axiomB = (maxLength axiomA) <= (maxLength axiomB)
-    (>) axiomA axiomB = (maxLength axiomA) > (maxLength axiomB)
-    (>=) axiomA axiomB = (maxLength axiomA) >= (maxLength axiomB)
-
-maxLength :: Axiom -> Int
-maxLength axiom = max ((getLength.lhs) axiom) ((getLength.rhs) axiom)
-
-getLength :: Term -> Int	
-getLength = length.findVarsInTerm 
-
-lhs :: Axiom -> Term
-lhs (Axiom (l,_)) = l
-
-rhs :: Axiom -> Term
-rhs (Axiom (_,r)) = r
-
---simple, todo: complicated
-takeAxiom :: [Axiom] -> (Axiom,[Axiom])
-takeAxiom axioms = (head sortedAxioms, tail sortedAxioms)
-    where
-    sortedAxioms = axioms--List.sort axioms
 
 --ready
 kbCompletion :: Axioms -> ReductionRules
@@ -66,6 +24,13 @@ kb (axioms,rules) =
             normalisedAxiom = normaliseAxiom axiom rules; 
             rule = renameVarsInReductionRuleWithPrefix "" (orderAxiom normalisedAxiom)
             newRules = makeNewRules rule rules
+
+
+--simple, todo: complicated
+takeAxiom :: [Axiom] -> (Axiom,[Axiom])
+takeAxiom axioms = (head sortedAxioms, tail sortedAxioms)
+    where
+    sortedAxioms = axioms--List.sort axioms
 
 
 makeNewRules :: ReductionRule -> [ReductionRule] -> [ReductionRule]
@@ -405,99 +370,3 @@ isReducable (rule:rules) t =
           else any (isR (ReductionRule (Func rFuncName rFuncArgs, result))) args 
 
 
-renameVars :: Term -> Term
-renameVars = renameVarsWithPrefix ""
-
-renameVarsWithPrefix :: String -> Term -> Term
-renameVarsWithPrefix prefix term = rename prefix term (findVarsInTerm term) 0 where
-    rename :: String -> Term -> [Term] -> Int -> Term
-    rename prefix term [] n = term
-    rename prefix term (v:vars) n = rename prefix (changeVarInTerm v (Var (prefix++('v':(show n)))) term) vars (n+1)
-
-renameVarsInReductionRule :: ReductionRule -> ReductionRule
-renameVarsInReductionRule (ReductionRule (rule,result)) = rename (ReductionRule (rule,result)) (findVarsInTerm rule) 0 where
-    rename :: ReductionRule -> [Term] -> Int -> ReductionRule
-    rename (ReductionRule (rule,result)) [] n = (ReductionRule (rule,result))
-    rename (ReductionRule (rule,result)) (v:vars) n = 
-      rename (ReductionRule (changeVarInTerm v (Var ('v':(show n))) rule,changeVarInTerm v (Var ('v':(show n))) result)) vars (n+1)
-
-renameVarsInReductionRuleWithPrefix :: String -> ReductionRule -> ReductionRule
-renameVarsInReductionRuleWithPrefix prefix (ReductionRule (rule,result)) = rename prefix (ReductionRule (rule,result)) (findVarsInTerm rule) 0 where
-    rename :: String -> ReductionRule -> [Term] -> Int -> ReductionRule
-    rename prefix (ReductionRule (rule,result)) [] n = (ReductionRule (rule,result))
-    rename prefix (ReductionRule (rule,result)) (v:vars) n = 
-      rename prefix (ReductionRule (changeVarInTerm v (Var (prefix++('v':(show n)))) rule,changeVarInTerm v (Var (prefix++('v':(show n)))) result)) vars (n+1)
-
-
-isFunc :: Term -> Bool
-isFunc (Func a b) = True 
-isFunc (Var v) = False
-
-checkVarInTerm :: Term -> Term -> Bool
-checkVarInTerm (Var v) (Var t) = v == t
-checkVarInTerm (Var v) (Func t args) = or (map (\x -> checkVarInTerm (Var v) x) args)
-
-changeVarInTerm :: Term -> Term -> Term -> Term
-changeVarInTerm (Var old) (Var new) (Var t) = if (Var old) == (Var t) then Var new else Var t
-changeVarInTerm (Var old) (Var new) (Func t args) = Func t (map (\x -> changeVarInTerm (Var old) (Var new) x) args)
-
-findVarsInTerm :: Term -> [Term]
-findVarsInTerm t = removeDuplicateVars (findVars t []) where
-    findVars :: Term -> [Term] -> [Term]
-    findVars (Var v) vars = (Var v):vars
-    findVars (Func f []) vars = vars
-    findVars (Func f (a:args)) vars = findVars (Func f args) (findVars a vars)
-    removeDuplicateVars :: [Term] -> [Term] 
-    removeDuplicateVars vars = removeDuplicates vars [] where 
-        removeDuplicates :: [Term] -> [Term] -> [Term]
-        removeDuplicates [] result = result
-        removeDuplicates (v:vars) result = if elem v result 
-          then removeDuplicates vars result 
-          else removeDuplicates vars (v:result)
-
-
-normaliseTerm :: Term -> Term
-normaliseTerm term = normalise term (findVarsInTerm term) 0 where
-    normalise :: Term -> [Term] -> Int -> Term
-    normalise term [] n = term
-    normalise term (v:vars) n = normalise (changeVarInTerm v (Var ('v':(show n))) term) vars (n+1)
-
-
-translate :: String -> Term
-translate ('(':text) = (translate.takeBrackets) ('(':text)
-translate text = 
-    if (length.betterWords) text == 1
-      then Var text
-      else Func funcName (map translate funcArgs) where funcName:funcArgs = betterWords text
-
-
-takeBrackets :: [Char] -> [Char]
-takeBrackets text = tb text 0 where 
-    tb :: [Char] -> Int -> [Char]
-    tb []       _     = []
-    tb ('(':xs) 0     = tb xs 1 
-    tb ('(':xs) n     = '(':tb xs (n+1)
-    tb (')':xs) 1     = tb xs 0
-    tb (')':xs) n     = ')':tb xs (n-1) 
-    tb (x:xs)   n     = x:tb xs n
-
-
-betterWords :: [Char] -> [[Char]]
-betterWords text = bw text [] 0 where 
-    bw :: [Char] -> [Char] -> Int -> [[Char]]
-    bw (' ':xs) tmpWord 0     = tmpWord:bw xs [] 0
-    bw ('(':xs) tmpWord 0     = bw xs tmpWord 1
-    bw ('(':xs) tmpWord n     = bw xs (tmpWord ++ ['(']) (n+1)
-    bw (x:xs)   tmpWord 0     = bw xs (tmpWord ++ [x]) 0
-    bw (')':xs) tmpWord 1     = bw xs tmpWord 0
-    bw (')':xs) tmpWord n = bw xs (tmpWord ++ [')']) (n-1)
-    bw (x:xs)   tmpWord n     = bw xs (tmpWord ++ [x]) n
-    bw []       tmpWord n     = [tmpWord]
-
-
-drawTerm :: Term -> String
-drawTerm term = drawTree.makeTree $ term
-
-makeTree :: Term -> Tree String
-makeTree (Func name args) = Node name (map makeTree args)
-makeTree (Var name) = Node name []

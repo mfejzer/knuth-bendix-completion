@@ -6,6 +6,13 @@ import Diagrams.Backend.Cairo
 import Diagrams.Backend.Cairo.CmdLine
 import Diagrams.Backend.Cairo.Internal
 import Graphics.Rendering.Diagrams.Core
+import KnuthBendixCompletion.Datatypes
+
+
+makeTree :: Term -> Tree String
+makeTree (Func name args) = Node name (map makeTree args)
+makeTree (Var name) = Node name []
+
 
 renderStandardTree tree =
 	renderTree ((<> circle 1 # fc white) . text . show)

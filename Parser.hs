@@ -1,5 +1,6 @@
 module Parser where
 import KnuthBendixCompletion.Datatypes
+import Text.ParserCombinators.Parsec
 
 translate :: String -> Term
 translate ('(':text) = (translate.takeBrackets) ('(':text)
@@ -32,5 +33,55 @@ betterWords text = bw text [] 0 where
     bw (x:xs)   tmpWord n     = bw xs (tmpWord ++ [x]) n
     bw []       tmpWord n     = [tmpWord]
 
+parseAxiom :: String -> Either ParseError Axiom
+parseAxiom input = parse axiomParser "(unknown)" input
+
+parseReductionRule :: String -> Either ParseError ReductionRule
+parseReductionRule input = parse reductionRuleParser "(unknown)" input
+
+parseTerm :: String -> Either ParseError Term
+parseTerm input = parse termParser "(unknown)" input
 
 
+axiomParser :: GenParser Char st Axiom
+axiomParser = do
+	lhs <- termParser
+	string "<->"
+	rhs <- termParser
+	return $ Axiom (lhs,rhs)
+
+reductionRuleParser :: GenParser Char st ReductionRule
+reductionRuleParser = do
+	rule <- termParser
+	string "->"
+	result <- termParser
+	return $ ReductionRule (rule,result)
+
+termParser :: GenParser Char st Term
+termParser = do
+	result <- try (funcParser) <|> varParser
+	return $ result
+
+
+varParser :: GenParser Char st Term
+varParser = do
+	name <- nameParser
+	return $ Var name
+
+funcParser :: GenParser Char st Term
+funcParser = do
+	name <- nameParser
+	char '('
+	args <- argsParser
+	char ')'
+	return $ Func name args
+
+argsParser :: GenParser Char st [Term]
+argsParser = do
+	args <- sepBy termParser (char ',')
+	return $ args	
+
+nameParser :: GenParser Char st String
+nameParser = do
+	result <- many1 (noneOf ",()\n")
+	return $ result

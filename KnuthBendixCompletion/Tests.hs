@@ -1,4 +1,4 @@
-module KnuthBendixCompletion.Test where
+module KnuthBendixCompletion.Tests where
 import KnuthBendixCompletion.Algorithm
 import KnuthBendixCompletion.Datatypes
 import Parser

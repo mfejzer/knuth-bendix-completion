@@ -42,6 +42,9 @@ parseReductionRule input = parse reductionRuleParser "(unknown)" input
 parseTerm :: String -> Either ParseError Term
 parseTerm input = parse termParser "(unknown)" input
 
+convertError :: Either ParseError a -> Either String a
+convertError (Left e) = (Left $ show e)
+convertError (Right a) = (Right a)
 
 axiomParser :: GenParser Char st Axiom
 axiomParser = do

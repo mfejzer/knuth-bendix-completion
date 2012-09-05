@@ -9,7 +9,14 @@ import Diagrams.Backend.Cairo.Internal
 import Graphics.Rendering.Diagrams.Core
 import KnuthBendixCompletion.Datatypes
 
-renderReductionRule reductionRule = ((makeAndRender.getRule) reductionRule) ||| (text "<->" <> rect 3 1) ||| ((makeAndRender.getResult) reductionRule) 
+renderArgs (axioms,reductionRules) =
+    axiomsDiagram === rulesDiagram
+    where
+    axiomsDiagram = foldl (===) (text "Axioms" <> rect 5 1)  (map renderAxiom axioms)
+    rulesDiagram = foldl (===) (text "ReductionRules" <> rect 7 1) (map renderReductionRule reductionRules)
+
+
+renderReductionRule reductionRule = ((makeAndRender.getRule) reductionRule) ||| (text "->" <> rect 3 1) ||| ((makeAndRender.getResult) reductionRule) 
 renderAxiom axiom = ((makeAndRender.lhs) axiom) ||| (text "<->" <> rect 3 1) ||| ((makeAndRender.rhs) axiom) 
 
 makeAndRender term = (renderStandardTree.makeTree) term
@@ -32,6 +39,8 @@ generateTreeDiagram name tree = fst(saveDiagram (renderStandardTree tree) name)
 
 generateReductionRuleDiagram name reductionRule = generate name (renderReductionRule reductionRule)
 generateAxiomDiagram name axiom = generate name (renderAxiom axiom)
+
+generateArgsDiagram name args = generate name (renderArgs args)
 
 generate name renderer = fst(saveDiagram renderer name)
 

@@ -1,6 +1,6 @@
-module Persistance where
 {-# LANGUAGE CPP, DeriveDataTypeable, FlexibleContexts, GeneralizedNewtypeDeriving, 
     MultiParamTypeClasses, TemplateHaskell, TypeFamilies, RecordWildCards #-}
+module Persistance where
 import Control.Applicative  ((<$>))
 import Control.Exception    (bracket)
 import Control.Monad        (msum)
@@ -23,7 +23,7 @@ data ArgsState = ArgsState { args ::(Axioms,ReductionRules)}
 deriveSafeCopy 0 'base ''ArgsState
 
 initialArgsState :: ArgsState
-initialArgsState = ArgsState ([],[])
+initialArgsState = ArgsState (groupAxioms,[])
 
 updateArgs :: (Axioms, ReductionRules) -> Update ArgsState (Axioms, ReductionRules)
 updateArgs newArgs =

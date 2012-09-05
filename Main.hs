@@ -1,8 +1,13 @@
-{-module Main where -}
 {-# LANGUAGE NoMonomorphismRestriction, OverloadedStrings,CPP, DeriveDataTypeable, FlexibleContexts, GeneralizedNewtypeDeriving, 
     MultiParamTypeClasses, TemplateHaskell, TypeFamilies, RecordWildCards  #-}
+{-module Main where -}
+import Control.Exception    ( bracket )
 import Control.Monad (msum)
 import Control.Monad.Trans (lift, liftIO)
+import Data.Acid            ( AcidState, Query, Update, openLocalState )
+import Data.Acid.Advanced   ( query', update' )
+import Data.Acid.Local      ( createCheckpointAndClose )
+import Data.SafeCopy        ( base, deriveSafeCopy )
 import Data.Tree
 import DiagramWrapper
 import Graphics.Rendering.Diagrams.Core 
@@ -21,16 +26,23 @@ import Text.Blaze.Html4.Strict		as B hiding (map)
 import Text.Blaze.Html4.Strict.Attributes as B hiding (dir, label, title)
 
 main :: IO ()
-main = simpleHTTP nullConf $ handlers
+main =
+    do bracket (openLocalState initialArgsState)
+               (createCheckpointAndClose)
+               (\acid ->
+                    simpleHTTP nullConf (handlers acid))
 
 myPolicy :: BodyPolicy
 myPolicy = (defaultBodyPolicy "/tmp/" 0 1000 1000)
 
-handlers :: ServerPart Response
-handlers =
+handlers :: AcidState ArgsState -> ServerPart Response
+handlers acid =
     do decodeBody myPolicy
        msum [dir "AddAxiom" $ dir "Form" $ addAxiomFormPart
-            ,dir "AddAxiom" $ dir "Result" $ addAxiomResultPart
+            ,dir "AddAxiom" $ dir "Result" $ addAxiomResultPart acid
+            ,dir "RunKBC" $ runKBC acid
+            , do args <- query' acid PeekArgs 
+                 showArgs args
             ]
 
 
@@ -44,8 +56,8 @@ addAxiomFormPart = ok $ toResponse $
              B.label "Enter axiom: " >> input ! type_ "text" ! name "axiom" ! size "100"
              input ! type_ "submit" ! name "Enter"
 
-addAxiomResultPart :: ServerPart Response
-addAxiomResultPart =
+addAxiomResultPart :: AcidState ArgsState -> ServerPart Response
+addAxiomResultPart acid =
 	do methodM POST 
 	   result <- getDataFn (look "axiom" `checkRq` (convertError.parseAxiom))
 	   case result of
@@ -56,4 +68,16 @@ translateName :: String -> String
 translateName name = name++".png"
 
 fileName = "tmp"
+
+
+runKBC:: AcidState ArgsState -> ServerPart Response
+runKBC acid =
+    do args <- update' acid (UpdateArgsByKBC)
+       showArgs args
+
+
+showArgs :: (Axioms,ReductionRules) -> ServerPart Response
+showArgs args =
+    do (liftIO $ (generateArgsDiagram (translateName fileName) args))
+       serveFile (asContentType "image/png") (translateName fileName)
 

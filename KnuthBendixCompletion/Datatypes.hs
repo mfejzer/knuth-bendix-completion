@@ -1,21 +1,21 @@
 module KnuthBendixCompletion.Datatypes where
+import Data.Data (Data, Typeable)
 import Data.Tree
 
-
 data Term = Func String [Term] | Var String
-    deriving (Eq, Ord, Read, Show)
+    deriving (Eq, Ord, Read, Show, Data, Typeable)
 
 data ReductionRule = ReductionRule (Term,Term)
-    deriving (Eq, Ord, Read)
+    deriving (Eq, Ord, Read, Data, Typeable)
 
-data Axiom = Axiom (Term,Term)
-    deriving (Eq, Read)
-
-type ReductionRules = [ReductionRule]
-type Axioms = [Axiom]
+getRule (ReductionRule (rule,_)) = rule
+getResult (ReductionRule (_,result)) = result
 
 instance Show ReductionRule where
     show (ReductionRule (rule,result)) = show rule ++ " -> " ++ show result ++ "\n"
+
+data Axiom = Axiom (Term,Term)
+    deriving (Eq, Read, Data, Typeable)
 
 instance Show Axiom where
     show (Axiom (l,r)) = "Axiom: " ++ show l ++ " <-> " ++ show r ++ "\n"
@@ -26,25 +26,25 @@ instance Ord Axiom where
     (>) axiomA axiomB = (maxLength axiomA) > (maxLength axiomB)
     (>=) axiomA axiomB = (maxLength axiomA) >= (maxLength axiomB)
 
-getRule (ReductionRule (rule,_)) = rule
-getResult (ReductionRule (_,result)) = result
-
-
 maxLength :: Axiom -> Int
 maxLength axiom = max ((getLength.lhs) axiom) ((getLength.rhs) axiom)
-
 
 getLength :: Term -> Int	
 getLength = length.findVarsInTerm 
 
+type ReductionRules = [ReductionRule]
+type Axioms = [Axiom]
+
+groupAxioms = 
+    [Axiom (Func "+" [Func "0" [],Var "x"],Var "x"),
+            Axiom (Func "+" [Func "-" [Var "x"],Var "x"],Func "0" []),
+            Axiom (Func "+" [Func "+" [Var "x",Var "y"],Var "z"],Func "+" [Var "x",Func "+" [Var "y",Var "z"]])]
 
 lhs :: Axiom -> Term
 lhs (Axiom (l,_)) = l
 
-
 rhs :: Axiom -> Term
 rhs (Axiom (_,r)) = r
-
 
 renameVars :: Term -> Term
 renameVars = renameVarsWithPrefix ""

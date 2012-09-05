@@ -1,5 +1,6 @@
 {-module Main where -}
-{-# LANGUAGE NoMonomorphismRestriction, OverloadedStrings #-}
+{-# LANGUAGE NoMonomorphismRestriction, OverloadedStrings,CPP, DeriveDataTypeable, FlexibleContexts, GeneralizedNewtypeDeriving, 
+    MultiParamTypeClasses, TemplateHaskell, TypeFamilies, RecordWildCards  #-}
 import Control.Monad (msum)
 import Control.Monad.Trans (lift, liftIO)
 import Data.Tree
@@ -14,6 +15,7 @@ import KnuthBendixCompletion.Datatypes
 import KnuthBendixCompletion.Tests
 import Parser
 import ParserTests
+import Persistance
 import Text.Blaze			as B
 import Text.Blaze.Html4.Strict		as B hiding (map)
 import Text.Blaze.Html4.Strict.Attributes as B hiding (dir, label, title)

@@ -62,10 +62,6 @@ reductionTests =
      findCriticalPair r4 r14 [] == [Axiom (Func "-" [Func "+" [Var "v0",Var "v1"]], Func "+" [Func "-" [Var "v0"],Func "-" [Var "v1"]])]
    ]
 
-groupAxioms = 
-    [Axiom (Func "+" [Func "0" [],Var "x"],Var "x"),
-            Axiom (Func "+" [Func "-" [Var "x"],Var "x"],Func "0" []),
-            Axiom (Func "+" [Func "+" [Var "x",Var "y"],Var "z"],Func "+" [Var "x",Func "+" [Var "y",Var "z"]])]
 
 strangeAxioms =
     [Axiom (Func "*" [Func "e" [],Var "x"],Var "x"),

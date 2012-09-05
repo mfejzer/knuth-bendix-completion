@@ -2,14 +2,15 @@ module DiagramWrapper where
 import Data.Tree
 import Diagrams.Prelude
 import Diagrams.TwoD.Layout.Tree
+import Diagrams.TwoD.Text
 import Diagrams.Backend.Cairo
 import Diagrams.Backend.Cairo.CmdLine
 import Diagrams.Backend.Cairo.Internal
 import Graphics.Rendering.Diagrams.Core
 import KnuthBendixCompletion.Datatypes
 
-renderReductionRule reductionRule = ((makeAndRender.getRule) reductionRule) ||| ((makeAndRender.getResult) reductionRule) 
-renderAxiom axiom = ((makeAndRender.lhs) axiom) ||| ((makeAndRender.rhs) axiom) 
+renderReductionRule reductionRule = ((makeAndRender.getRule) reductionRule) ||| (text "<->" <> rect 3 1) ||| ((makeAndRender.getResult) reductionRule) 
+renderAxiom axiom = ((makeAndRender.lhs) axiom) ||| (text "<->" <> rect 3 1) ||| ((makeAndRender.rhs) axiom) 
 
 makeAndRender term = (renderStandardTree.makeTree) term
 

@@ -1,6 +1,6 @@
 {-# LANGUAGE NoMonomorphismRestriction, OverloadedStrings,CPP, DeriveDataTypeable, FlexibleContexts, GeneralizedNewtypeDeriving, 
     MultiParamTypeClasses, TemplateHaskell, TypeFamilies, RecordWildCards  #-}
-{-module Main where -}
+module Main where 
 import Control.Exception    ( bracket )
 import Control.Monad (msum)
 import Control.Monad.Trans (lift, liftIO)

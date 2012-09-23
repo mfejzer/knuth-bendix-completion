@@ -2,26 +2,19 @@ module KnuthBendixCompletion.Algorithm where
 import KnuthBendixCompletion.Datatypes
 import Data.List (sort)
 
---ready
-kbCompletion :: Axioms -> ReductionRules
-kbCompletion axioms = kbc (axioms,[])
-    where
-    kbc ([],rules) = rules
-    kbc (axioms,rules) = (kbc.kb) (axioms,rules)
-
-apply g 1 = g
-apply g n = g . (apply g (n-1))
-
-kb :: ([Axiom],[ReductionRule]) -> ([Axiom],[ReductionRule])
-kb ([],rules) = ([],rules)
+kb :: ([Axiom],[ReductionRule]) -> Either Axiom ([Axiom],[ReductionRule])
+kb ([],rules) = Right ([],rules)
 kb (axioms,rules) = 
-      if orderTerms (lhs normalisedAxiom) (rhs normalisedAxiom) /= EQ && (not $ elem rule rules)
-        then 
-          (superposeRules rule newRules restAxioms, newRules)
-        else 
-          (restAxioms,rules)
-      where (axiom,restAxioms) = takeAxiom axioms;
-            normalisedAxiom = normaliseAxiom axiom rules; 
+      if compareTerms axiomLhs axiomRhs == EQ && (not $ checkLexEq axiomLhs axiomRhs)
+	then Left normalisedAxiom
+	else
+          if (not $ elem rule rules)
+            then Right (superposeRules rule newRules restAxioms, newRules)
+            else Right (restAxioms,rules)
+      where (axiom,restAxioms) = takeAxiom axioms
+            normalisedAxiom = normaliseAxiom axiom rules
+            axiomLhs = lhs normalisedAxiom
+            axiomRhs = rhs normalisedAxiom
             rule = renameVarsInReductionRuleWithPrefix "" (orderAxiom normalisedAxiom)
             newRules = makeNewRules rule rules
 
@@ -46,9 +39,9 @@ makeNewRules rule rules = mnr rule rules []
 
 reduceRule :: ReductionRule -> ReductionRule -> Maybe ReductionRule
 reduceRule reductingRule (ReductionRule (rule,result)) =
-    if orderTerms reducedRule reducedResult /= EQ
+    if compareTerms reducedRule reducedResult /= EQ
       then
-      if orderTerms reducedRule reducedResult /= LT
+      if compareTerms reducedRule reducedResult /= LT
         then Just (ReductionRule (reducedRule,reducedResult))
         else Just (ReductionRule (reducedResult,reducedRule))
       else Nothing
@@ -61,7 +54,7 @@ normaliseAxiom (Axiom (termA,termB)) rules =
 
 reduceToNormalised :: [ReductionRule] -> Term -> Term
 reduceToNormalised rules term = 
-    if orderTerms result term == EQ
+    if compareTerms result term == EQ
       then term
       else reduceToNormalised rules result
     where result = reduce rules term
@@ -69,17 +62,17 @@ reduceToNormalised rules term =
 reduce :: [ReductionRule] -> Term -> Term
 reduce [] term = term
 reduce (rule:rest) term =
-    if orderTerms result term == EQ
+    if compareTerms result term == EQ
       then reduce rest term
       else result
     where result = reduceTerm renamedRule term
           renamedRule = renameVarsInReductionRuleWithPrefix "r" rule 
 
 orderAxiom :: Axiom -> ReductionRule 
-orderAxiom a = if orderTerms (lhs a) (rhs a) == GT then (ReductionRule (lhs a,rhs a)) else (ReductionRule (rhs a,lhs a))
+orderAxiom a = if compareTerms (lhs a) (rhs a) == GT then (ReductionRule (lhs a,rhs a)) else (ReductionRule (rhs a,lhs a))
 
-orderTerms :: Term -> Term -> Ordering
-orderTerms termA termB =
+compareTerms :: Term -> Term -> Ordering
+compareTerms termA termB =
     if result == EQ 
       then checkVarCount termA termB
       else result 
@@ -107,6 +100,11 @@ orderTerms termA termB =
              else EQ
 
 
+checkLexEq :: Term -> Term -> Bool
+checkLexEq (Var x) (Var y) = x==y
+checkLexEq (Func f argsF) (Func g argsG) = foldr (&&) (f==g) (map (\(x,y) -> checkLexEq x y) (zip argsF argsG))
+
+
 superposeRules :: ReductionRule -> [ReductionRule] -> [Axiom] -> [Axiom]
 superposeRules rule [] axioms = axioms
 superposeRules rule (r:rules) axioms =
@@ -119,17 +117,17 @@ findCriticalPair ruleA ruleB axioms =
     find ruleB ruleA $ find ruleA ruleB axioms
     where
     find :: ReductionRule -> ReductionRule -> [Axiom] -> [Axiom]
-    find (ReductionRule (termA,resultA)) (ReductionRule (termB,resultB)) axioms =
-        if checkCriticalPair renamedTermA renamedTermB
-          then addCriticalPair (ReductionRule (renamedTermA,renamedResultA)) (ReductionRule (renamedTermB,renamedResultB)) axioms
+    find ruleA ruleB axioms =
+        if checkCriticalPair (getRule renamedRuleA) (getRule renamedRuleB)
+          then addCriticalPair renamedRuleA renamedRuleB axioms
           else axioms
-      where (ReductionRule (renamedTermA,renamedResultA)) = renameVarsInReductionRuleWithPrefix "l" (ReductionRule (termA,resultA))
-            (ReductionRule (renamedTermB,renamedResultB)) = renameVarsInReductionRuleWithPrefix "r" (ReductionRule (termB,resultB))
+      where renamedRuleA = renameVarsInReductionRuleWithPrefix "l" ruleA
+            renamedRuleB = renameVarsInReductionRuleWithPrefix "r" ruleB
 
 
 checkCriticalPair :: Term -> Term -> Bool 
 checkCriticalPair (Func nameA argsA) (Func nameB argsB) =
-    if orderTerms (Func nameA argsA) (Func nameB argsB) == EQ
+    if compareTerms (Func nameA argsA) (Func nameB argsB) == EQ
       then
          any (\a -> checkSuperposition a (Func nameB argsB)) argsA
       else
@@ -187,13 +185,13 @@ createCriticalPair (ReductionRule (ruleA,resultA)) (ReductionRule (ruleB,resultB
     createCritical :: ReductionRule -> ReductionRule -> [Term] -> [Axiom]
     createCritical _ _ [] = []
     createCritical (ReductionRule (ruleA,resultA)) (ReductionRule (ruleB,resultB)) ((Func name args):rest) = 
-      if orderTerms ruleA ruleB /= EQ
+      if compareTerms ruleA ruleB /= EQ
         then
-          if (orderTerms (Func rname rargs) reductionA /= EQ && orderTerms (Func rname rargs) reductionB /= EQ ) 
+          if (compareTerms (Func rname rargs) reductionA /= EQ && compareTerms (Func rname rargs) reductionB /= EQ ) 
             then (Axiom (reductionA,reductionB)):createRest
             else createRest
         else
-          if (orderTerms (Func rname rargs) reductionA /= EQ && orderTerms (Func rname rargs) reductionRecB /= EQ ) 
+          if (compareTerms (Func rname rargs) reductionA /= EQ && compareTerms (Func rname rargs) reductionRecB /= EQ ) 
             then (Axiom (reductionA,reductionRecB)):createRest
             else createRest
       where 
@@ -204,7 +202,7 @@ createCriticalPair (ReductionRule (ruleA,resultA)) (ReductionRule (ruleB,resultB
       mapOnlyFirst :: (Term -> Term) -> [Term] -> [Term]
       mapOnlyFirst f [] = []
       mapOnlyFirst f (a:args) =
-        if orderTerms a b == EQ
+        if compareTerms a b == EQ
           then a:(mapOnlyFirst f args)
           else b:args
         where b = f a
@@ -217,7 +215,7 @@ createCriticalTerm (Func nameA argsA) (Func nameB argsB) =
     where
     create :: Term -> Term -> Term ->[Term]
     create (Func nameA argsA) (Func nameB argsB) result = 
-      if orderTerms (Func nameA argsA) (Func nameB argsB) == EQ
+      if compareTerms (Func nameA argsA) (Func nameB argsB) == EQ
         then 
           superposeArgs argsA (Func nameB argsB) result
         else
@@ -293,7 +291,7 @@ reduceTerm (ReductionRule (Func ruleName ruleArgs,result)) (Func name args) =
     mapOnlyFirst :: (Term -> Term) -> [Term] -> [Term]
     mapOnlyFirst f [] = []
     mapOnlyFirst f (a:args) =
-      if orderTerms a b == EQ --a == b
+      if compareTerms a b == EQ --a == b
         then a:(mapOnlyFirst f args)
         else b:args
       where b = f a
@@ -354,19 +352,5 @@ checkRuleInTerm (ReductionRule (Func ruleFuncName ruleFuncArgs,result)) (Func na
           then bindedTerm == hTerm && (checkBindedVar (Var v,bindedTerm) rest)
           else checkBindedVar (Var v,bindedTerm) rest
     
-
-isReducable :: ReductionRules -> Term -> Bool
-isReducable [] t = False
-isReducable (rule:rules) t =
-    if isR rule t 
-      then True
-      else isReducable rules t
-    where
-    isR :: ReductionRule -> Term -> Bool
-    isR (ReductionRule (Func rFuncName rFuncArgs, result)) (Var v) = False
-    isR (ReductionRule (Func rFuncName rFuncArgs, result)) (Func name args) =
-        if rFuncName == name && length rFuncArgs == length args
-          then checkRuleInTerm (ReductionRule (Func rFuncName rFuncArgs, result)) (Func name args) 
-          else any (isR (ReductionRule (Func rFuncName rFuncArgs, result))) args 
 
 

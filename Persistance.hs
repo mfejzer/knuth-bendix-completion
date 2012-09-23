@@ -18,17 +18,17 @@ deriveSafeCopy 0 'base ''Term
 deriveSafeCopy 0 'base ''ReductionRule
 deriveSafeCopy 0 'base ''Axiom
 
-data ArgsState = ArgsState { args ::(Axioms,ReductionRules)}
+data ArgsState = ArgsState { args ::(Axioms,ReductionRules), nonOrientable::Maybe Axiom}
 	deriving (Eq, Ord, Read, Show, Data, Typeable)
 deriveSafeCopy 0 'base ''ArgsState
 
 initialArgsState :: ArgsState
-initialArgsState = ArgsState (groupAxioms,[])
+initialArgsState = ArgsState (groupAxioms,[]) Nothing 
 
 updateArgs :: (Axioms, ReductionRules) -> Update ArgsState (Axioms, ReductionRules)
 updateArgs newArgs =
     do a@ArgsState{..} <- get
-       put $ a {args=newArgs}
+       put $ a {args=newArgs,nonOrientable=Nothing}
        return args
 
 peekArgs :: Query ArgsState (Axioms,ReductionRules)
@@ -37,15 +37,24 @@ peekArgs = args <$> ask
 updateArgsByKBC :: Update ArgsState (Axioms, ReductionRules)
 updateArgsByKBC = 
     do a@ArgsState{..} <- get
-       let newArgs = kb args
-       put $ a {args=newArgs}
-       return newArgs
+       let oldArgs = args
+       if nonOrientable == Nothing
+         then
+           case (kb args) of
+             (Left axiom) -> do 
+               put $ a {args=oldArgs,nonOrientable = Just axiom}
+               return args
+             (Right newArgs) -> do 
+               put $ a {args=newArgs,nonOrientable = Nothing} 
+               return newArgs
+         else
+           return args
 
 updateArgsToGroupAxioms :: Update ArgsState (Axioms, ReductionRules)
 updateArgsToGroupAxioms = 
     do a@ArgsState{..} <- get
        let newArgs = (groupAxioms,[])
-       put $ a {args=newArgs}
+       put $ a {args=newArgs,nonOrientable=Nothing}
        return newArgs
 
 $(makeAcidic ''ArgsState ['updateArgs,'updateArgsByKBC,'updateArgsToGroupAxioms,'peekArgs])

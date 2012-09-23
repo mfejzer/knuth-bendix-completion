@@ -1,3 +1,6 @@
+{-# LANGUAGE NoMonomorphismRestriction, OverloadedStrings,CPP, DeriveDataTypeable, FlexibleContexts, GeneralizedNewtypeDeriving, 
+    MultiParamTypeClasses #-}
+
 module KnuthBendixCompletion.Datatypes where
 import Data.Data (Data, Typeable)
 import Data.Tree

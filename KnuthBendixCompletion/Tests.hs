@@ -88,6 +88,13 @@ r14 =  ReductionRule (Func "+" [Var "v0",Func "-"[Func "+" [Var "v0",Var "v1"]]]
 r15 =  ReductionRule (Func "-" [Func "+" [Var "v0",Var "v1"]],Func "+" [Func "-" [Var "v0"],Func "-" [Var "v1"]])
 allRules = [r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13,r14,r15]
 
+apply f 1 e= f e
+apply f n e= 
+    case w of
+      (Left a) -> Left a
+      (Right ar) -> apply f (n-1) ar
+    where w = f e
+
 y n = (apply kb n) (groupAxioms,[])
 
 

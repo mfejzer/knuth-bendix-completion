@@ -2,13 +2,23 @@ module KnuthBendixCompletion.Algorithm where
 import KnuthBendixCompletion.Datatypes
 import Data.List (sort)
 
+kbc :: ([Axiom],[ReductionRule]) -> Either Axiom ([Axiom],[ReductionRule])
+kbc args =
+    case result of
+      (Left error) -> Left error
+      (Right newArgs) -> 
+        if newArgs == args 
+          then Right newArgs
+          else kbc newArgs
+    where result = kb args
+
 kb :: ([Axiom],[ReductionRule]) -> Either Axiom ([Axiom],[ReductionRule])
 kb ([],rules) = Right ([],rules)
 kb (axioms,rules) = 
       if compareTerms axiomLhs axiomRhs == EQ && (not $ checkLexEq axiomLhs axiomRhs)
 	then Left normalisedAxiom
 	else
-          if (not $ elem rule rules)
+          if (compareTerms axiomLhs axiomRhs /= EQ) && (not $ elem rule rules)
             then Right (superposeRules rule newRules restAxioms, newRules)
             else Right (restAxioms,rules)
       where (axiom,restAxioms) = takeAxiom axioms
@@ -23,7 +33,7 @@ kb (axioms,rules) =
 takeAxiom :: [Axiom] -> (Axiom,[Axiom])
 takeAxiom axioms = (head sortedAxioms, tail sortedAxioms)
     where
-    sortedAxioms = axioms--List.sort axioms
+    sortedAxioms = axioms --List.sort axioms
 
 
 makeNewRules :: ReductionRule -> [ReductionRule] -> [ReductionRule]

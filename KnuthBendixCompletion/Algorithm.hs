@@ -48,15 +48,15 @@ makeNewRules rule rules = mnr rule rules []
             add (Just rule) acc = if elem rule acc then acc else (rule:acc)
 
 reduceRule :: ReductionRule -> ReductionRule -> Maybe ReductionRule
-reduceRule reductingRule (ReductionRule (rule,result)) =
+reduceRule reductingRule (ReductionRule {rule=ruleTerm,result=resultTerm}) =
     if compareTerms reducedRule reducedResult /= EQ
       then
       if compareTerms reducedRule reducedResult /= LT
-        then Just (ReductionRule (reducedRule,reducedResult))
-        else Just (ReductionRule (reducedResult,reducedRule))
+        then Just (ReductionRule {rule=reducedRule,result=reducedResult})
+        else Just (ReductionRule {rule=reducedResult,result=reducedRule})
       else Nothing
-    where reducedRule = reduceTerm reductingRule rule
-          reducedResult = reduceTerm reductingRule result
+    where reducedRule = reduceTerm reductingRule ruleTerm
+          reducedResult = reduceTerm reductingRule resultTerm
 
 normaliseAxiom :: Axiom -> [ReductionRule] -> Axiom
 normaliseAxiom (Axiom (termA,termB)) rules = 
@@ -79,7 +79,10 @@ reduce (rule:rest) term =
           renamedRule = renameVarsInReductionRuleWithPrefix "r" rule 
 
 orderAxiom :: Axiom -> ReductionRule 
-orderAxiom a = if compareTerms (lhs a) (rhs a) == GT then (ReductionRule (lhs a,rhs a)) else (ReductionRule (rhs a,lhs a))
+orderAxiom a = 
+    if compareTerms (lhs a) (rhs a) == GT 
+      then (ReductionRule {rule=lhs a,result=rhs a}) 
+      else (ReductionRule {rule = rhs a,result =lhs a})
 
 compareTerms :: Term -> Term -> Ordering
 compareTerms termA termB =
@@ -128,7 +131,7 @@ findCriticalPair ruleA ruleB axioms =
     where
     find :: ReductionRule -> ReductionRule -> [Axiom] -> [Axiom]
     find ruleA ruleB axioms =
-        if checkCriticalPair (getRule renamedRuleA) (getRule renamedRuleB)
+        if checkCriticalPair (rule renamedRuleA) (rule renamedRuleB)
           then addCriticalPair renamedRuleA renamedRuleB axioms
           else axioms
       where renamedRuleA = renameVarsInReductionRuleWithPrefix "l" ruleA
@@ -150,7 +153,7 @@ checkCriticalPair _ _ = False
 checkSuperposition :: Term -> Term -> Bool
 checkSuperposition (Func nameA argsA) (Func nameB argsB) =  
     if checkStructure (Func nameA argsA) (Func nameB argsB) 
-      then checkBindedVars $ fixBindedVars (listBindedVars (ReductionRule (Func nameA argsA,Func nameA argsA)) (Func nameB argsB))
+      then checkBindedVars $ fixBindedVars (listBindedVars (ReductionRule {rule=Func nameA argsA,result=Func nameA argsA}) (Func nameB argsB))
       else False
     where
     checkStructure :: Term -> Term -> Bool 
@@ -189,12 +192,12 @@ addCriticalPair ruleA ruleB axioms =
         else add axioms newAxioms
 
 createCriticalPair :: ReductionRule -> ReductionRule -> [Axiom]
-createCriticalPair (ReductionRule (ruleA,resultA)) (ReductionRule (ruleB,resultB)) =
-    createCritical (ReductionRule (ruleA,resultA)) (ReductionRule (ruleB,resultB)) (createCriticalTerm ruleA ruleB)
+createCriticalPair (ReductionRule {rule=ruleA,result=resultA}) (ReductionRule {rule=ruleB,result=resultB}) =
+    createCritical (ReductionRule {rule=ruleA,result=resultA}) (ReductionRule {rule=ruleB,result=resultB}) (createCriticalTerm ruleA ruleB)
     where
     createCritical :: ReductionRule -> ReductionRule -> [Term] -> [Axiom]
     createCritical _ _ [] = []
-    createCritical (ReductionRule (ruleA,resultA)) (ReductionRule (ruleB,resultB)) ((Func name args):rest) = 
+    createCritical (ReductionRule {rule=ruleA,result=resultA}) (ReductionRule {rule=ruleB,result=resultB}) ((Func name args):rest) = 
       if compareTerms ruleA ruleB /= EQ
         then
           if (compareTerms (Func rname rargs) reductionA /= EQ && compareTerms (Func rname rargs) reductionB /= EQ ) 
@@ -206,9 +209,9 @@ createCriticalPair (ReductionRule (ruleA,resultA)) (ReductionRule (ruleB,resultB
             else createRest
       where 
       (Func rname rargs) = renameVars (Func name args)
-      reductionA = reduceTerm (ReductionRule (ruleA,resultA)) (Func rname rargs)
-      reductionB = reduceTerm (ReductionRule (ruleB,resultB)) (Func rname rargs)
-      reductionRecB = Func rname (mapOnlyFirst (reduceTerm (ReductionRule (ruleB,resultB))) rargs)
+      reductionA = reduceTerm (ReductionRule {rule=ruleA,result=resultA}) (Func rname rargs)
+      reductionB = reduceTerm (ReductionRule {rule=ruleB,result=resultB}) (Func rname rargs)
+      reductionRecB = Func rname (mapOnlyFirst (reduceTerm (ReductionRule {rule=ruleB,result=resultB})) rargs)
       mapOnlyFirst :: (Term -> Term) -> [Term] -> [Term]
       mapOnlyFirst f [] = []
       mapOnlyFirst f (a:args) =
@@ -216,7 +219,7 @@ createCriticalPair (ReductionRule (ruleA,resultA)) (ReductionRule (ruleB,resultB
           then a:(mapOnlyFirst f args)
           else b:args
         where b = f a
-      createRest = createCritical (ReductionRule (ruleA,resultA)) (ReductionRule (ruleB,resultB)) rest
+      createRest = createCritical (ReductionRule {rule=ruleA,result=resultA}) (ReductionRule {rule=ruleB,result=resultB}) rest
 
 --better
 createCriticalTerm :: Term -> Term -> [Term]
@@ -242,13 +245,13 @@ superpose termA termB termResult =
     bindingAtoB (fixedBindingBtoA (fixedBindingAtoB termResult))
     where 
     bindingAtoB :: Term -> Term
-    bindingAtoB term = foldl (changeBinding) term (listBindedVars (ReductionRule (termA,termA)) termB) 
+    bindingAtoB term = foldl (changeBinding) term (listBindedVars (ReductionRule {rule=termA,result=termA}) termB) 
     bindingBtoA :: Term -> Term
-    bindingBtoA term = foldl (changeBinding) term (listBindedVars (ReductionRule (termB,termB)) termA) 
+    bindingBtoA term = foldl (changeBinding) term (listBindedVars (ReductionRule {rule=termB,result=termB}) termA) 
     fixedBindingAtoB :: Term -> Term
-    fixedBindingAtoB term = foldl (changeBinding) term (fix $ listBindedVars (ReductionRule (termA,termA)) termB) 
+    fixedBindingAtoB term = foldl (changeBinding) term (fix $ listBindedVars (ReductionRule {rule=termA,result=termA}) termB) 
     fixedBindingBtoA :: Term -> Term
-    fixedBindingBtoA term = foldl (changeBinding) term (fix $ listBindedVars (ReductionRule (termB,termB)) termA) 
+    fixedBindingBtoA term = foldl (changeBinding) term (fix $ listBindedVars (ReductionRule {rule=termB,result=termB}) termA) 
 
 
 fix :: [(Term,Term)] -> [(Term,Term)]
@@ -293,10 +296,10 @@ fixBindedVars bindings =
 
 
 reduceTerm :: ReductionRule -> Term -> Term
-reduceTerm (ReductionRule (Func ruleName ruleArgs,result)) (Func name args) =
-    if checkRuleInTerm (ReductionRule (Func ruleName ruleArgs,result)) (Func name args) 
-      then swapTerm (ReductionRule (Func ruleName ruleArgs,result)) (Func name args)
-      else Func name (mapOnlyFirst (reduceTerm (ReductionRule (Func ruleName ruleArgs, result))) args)
+reduceTerm rr (Func name args) =
+    if checkRuleInTerm (rr) (Func name args) 
+      then swapTerm (rr) (Func name args)
+      else Func name (mapOnlyFirst (reduceTerm rr) args)
     where
     mapOnlyFirst :: (Term -> Term) -> [Term] -> [Term]
     mapOnlyFirst f [] = []
@@ -306,9 +309,9 @@ reduceTerm (ReductionRule (Func ruleName ruleArgs,result)) (Func name args) =
         else b:args
       where b = f a
     swapTerm :: ReductionRule -> Term -> Term
-    swapTerm (ReductionRule (rule,result)) term = 
-      foldl (changeBinding) result (listBindedVars (ReductionRule (rule,result)) term)
-reduceTerm (ReductionRule (Func ruleName ruleArgs,result)) (Var v) = Var v
+    swapTerm rr term = 
+      foldl (changeBinding) (result rr) (listBindedVars rr term)
+reduceTerm (rr) (Var v) = Var v
 
 changeBinding :: Term -> (Term,Term) -> Term
 changeBinding (Var t) (Var old, binded) = if (Var old) == (Var t) then binded else Var t
@@ -316,13 +319,13 @@ changeBinding (Func t args) (Var old, binded) = Func t (map (\x -> changeBinding
 
 
 listBindedVars :: ReductionRule -> Term -> [(Term, Term)]
-listBindedVars (ReductionRule (rule,result)) term = 
-    bindedVars (ReductionRule (rule,result)) term (findVarsInTerm rule) [] 
+listBindedVars rr term = 
+    bindedVars rr term (findVarsInTerm (rule rr)) [] 
     where
     bindedVars :: ReductionRule -> Term -> [Term] -> [(Term, Term)] -> [(Term,Term)]
     bindedVars _ _ [] binded = binded
-    bindedVars (ReductionRule (rule, result)) term ((Var v):vars) binded =
-      bindedVars (ReductionRule (rule, result)) term vars (binded ++ (getBinding (Var v) (rule,term)))
+    bindedVars rr term ((Var v):vars) binded =
+      bindedVars rr term vars (binded ++ (getBinding (Var v) (rule rr,term)))
       where 
       getBinding :: Term -> (Term,Term) -> [(Term,Term)]
       getBinding (Var v) (Var a,term) = 
@@ -336,9 +339,9 @@ listBindedVars (ReductionRule (rule,result)) term =
         [(Var v,Var a)]
 
 checkRuleInTerm :: ReductionRule -> Term -> Bool
-checkRuleInTerm (ReductionRule (Func ruleFuncName ruleFuncArgs,result)) (Func name args) =
+checkRuleInTerm (ReductionRule {rule=Func ruleFuncName ruleFuncArgs,result=res}) (Func name args) =
     if checkStructure (Func ruleFuncName ruleFuncArgs) (Func name args) 
-      then checkBindedVars (listBindedVars (ReductionRule (Func ruleFuncName ruleFuncArgs,result)) (Func name args) )
+      then checkBindedVars (listBindedVars (ReductionRule {rule=Func ruleFuncName ruleFuncArgs,result=res}) (Func name args) )
       else False
     where 
     checkStructure :: Term -> Term -> Bool

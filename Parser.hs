@@ -55,10 +55,10 @@ axiomParser = do
 
 reductionRuleParser :: GenParser Char st ReductionRule
 reductionRuleParser = do
-	rule <- termParser
+	parsedRule <- termParser
 	string "->"
-	result <- termParser
-	return $ ReductionRule (rule,result)
+	parsedResult <- termParser
+	return $ ReductionRule {rule=parsedRule,result=parsedResult}
 
 termParser :: GenParser Char st Term
 termParser = do

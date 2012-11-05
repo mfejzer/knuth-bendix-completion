@@ -16,7 +16,7 @@ renderArgs (axioms,reductionRules) =
     rulesDiagram = foldl (===) (text "ReductionRules" <> rect 7 1) (map renderReductionRule reductionRules)
 
 
-renderReductionRule reductionRule = ((makeAndRender.getRule) reductionRule) ||| (text "->" <> rect 3 1) ||| ((makeAndRender.getResult) reductionRule) 
+renderReductionRule reductionRule = ((makeAndRender.rule) reductionRule) ||| (text "->" <> rect 3 1) ||| ((makeAndRender.result) reductionRule) 
 renderAxiom axiom = ((makeAndRender.lhs) axiom) ||| (text "<->" <> rect 3 1) ||| ((makeAndRender.rhs) axiom) 
 
 makeAndRender term = (renderStandardTree.makeTree) term

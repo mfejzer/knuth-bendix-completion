@@ -8,14 +8,11 @@ import Data.Tree
 data Term = Func String [Term] | Var String
     deriving (Eq, Ord, Read, Show, Data, Typeable)
 
-data ReductionRule = ReductionRule (Term,Term)
+data ReductionRule = ReductionRule {rule::Term,result::Term}
     deriving (Eq, Ord, Read, Data, Typeable)
 
-getRule (ReductionRule (rule,_)) = rule
-getResult (ReductionRule (_,result)) = result
-
 instance Show ReductionRule where
-    show (ReductionRule (rule,result)) = show rule ++ " -> " ++ show result ++ "\n"
+    show (ReductionRule {rule=srule,result=sresult}) = show srule ++ " -> " ++ show sresult ++ "\n"
 
 data Axiom = Axiom (Term,Term)
     deriving (Eq, Read, Data, Typeable)
@@ -61,19 +58,19 @@ renameVarsWithPrefix prefix term = rename prefix term (findVarsInTerm term) 0 wh
 
 
 renameVarsInReductionRule :: ReductionRule -> ReductionRule
-renameVarsInReductionRule (ReductionRule (rule,result)) = rename (ReductionRule (rule,result)) (findVarsInTerm rule) 0 where
+renameVarsInReductionRule rr = rename rr (findVarsInTerm $ rule rr) 0 where
     rename :: ReductionRule -> [Term] -> Int -> ReductionRule
-    rename (ReductionRule (rule,result)) [] n = (ReductionRule (rule,result))
-    rename (ReductionRule (rule,result)) (v:vars) n = 
-      rename (ReductionRule (changeVarInTerm v (Var ('v':(show n))) rule,changeVarInTerm v (Var ('v':(show n))) result)) vars (n+1)
+    rename rr [] n = rr
+    rename rr (v:vars) n = 
+      rename (ReductionRule {rule=changeVarInTerm v (Var ('v':(show n))) (rule rr),result=changeVarInTerm v (Var ('v':(show n)))  (result rr)}) vars (n+1)
 
 
 renameVarsInReductionRuleWithPrefix :: String -> ReductionRule -> ReductionRule
-renameVarsInReductionRuleWithPrefix prefix (ReductionRule (rule,result)) = rename prefix (ReductionRule (rule,result)) (findVarsInTerm rule) 0 where
+renameVarsInReductionRuleWithPrefix prefix rr = rename prefix rr (findVarsInTerm $ rule rr) 0 where
     rename :: String -> ReductionRule -> [Term] -> Int -> ReductionRule
-    rename prefix (ReductionRule (rule,result)) [] n = (ReductionRule (rule,result))
-    rename prefix (ReductionRule (rule,result)) (v:vars) n = 
-      rename prefix (ReductionRule (changeVarInTerm v (Var (prefix++('v':(show n)))) rule,changeVarInTerm v (Var (prefix++('v':(show n)))) result)) vars (n+1)
+    rename prefix rr [] n = rr
+    rename prefix rr (v:vars) n = 
+      rename prefix (ReductionRule {rule=changeVarInTerm v (Var (prefix++('v':(show n)))) $ rule rr,result =changeVarInTerm v (Var (prefix++('v':(show n)))) $ result rr}) vars (n+1)
 
 
 changeVarInTerm :: Term -> Term -> Term -> Term

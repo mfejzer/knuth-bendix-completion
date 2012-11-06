@@ -90,13 +90,9 @@ r14 =  ReductionRule {rule=Func "+" [Var "v0",Func "-"[Func "+" [Var "v0",Var "v
 r15 =  ReductionRule {rule=Func "-" [Func "+" [Var "v0",Var "v1"]],result=Func "+" [Func "-" [Var "v0"],Func "-" [Var "v1"]]}
 allRules = [r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13,r14,r15]
 
-apply f 1 e= f e
-apply f n e= 
-    case w of
-      (Left a) -> Left a
-      (Right ar) -> apply f (n-1) ar
-    where w = f e
+apply f 0 args = args
+apply f n args = f (apply f (n-1) args)
 
-y n = (apply kb n) (groupAxioms,[])
+y n = (apply kb n) (CanProceed {axioms=groupAxioms,rules=[]})
 
 

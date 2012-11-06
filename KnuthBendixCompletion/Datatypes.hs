@@ -11,6 +11,12 @@ data Term = Func String [Term] | Var String
 data ReductionRule = ReductionRule {rule::Term,result::Term}
     deriving (Eq, Ord, Read, Data, Typeable)
 
+data AlgorithmStatus = Finished {finalRules::ReductionRules} 
+                       | CanProceed {axioms::Axioms,rules::ReductionRules} 
+                       | FailedOn {lastAxiom::Axiom, incompleteAxioms::Axioms,incompleteRules::ReductionRules}
+    deriving (Eq, Ord, Read, Data, Typeable)
+
+
 instance Show ReductionRule where
     show (ReductionRule {rule=srule,result=sresult}) = show srule ++ " -> " ++ show sresult ++ "\n"
 

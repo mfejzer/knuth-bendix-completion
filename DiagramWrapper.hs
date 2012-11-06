@@ -9,11 +9,15 @@ import Diagrams.Backend.Cairo.Internal
 import Graphics.Rendering.Diagrams.Core
 import KnuthBendixCompletion.Datatypes
 
-renderArgs (axioms,reductionRules) =
-    axiomsDiagram === rulesDiagram
-    where
-    axiomsDiagram = foldl (===) (text "Axioms" <> rect 5 1)  (map renderAxiom axioms)
-    rulesDiagram = foldl (===) (text "ReductionRules" <> rect 7 1) (map renderReductionRule reductionRules)
+renderStatus CanProceed {axioms=currentAxioms,rules=currentRules} =
+    (axiomsDiagram currentAxioms)===(rulesDiagram currentRules)
+renderStatus Finished {finalRules=currentRules} =
+    (rulesDiagram currentRules)
+renderStatus FailedOn {lastAxiom=axiom,incompleteAxioms=currentAxioms,incompleteRules=currentRules} =
+    (renderAxiom axiom)===(axiomsDiagram currentAxioms)===(rulesDiagram currentRules)
+    
+axiomsDiagram currentAxioms = foldl (===) (text "Axioms" <> rect 5 1)  (map renderAxiom currentAxioms)
+rulesDiagram currentReductionRules = foldl (===) (text "ReductionRules" <> rect 7 1) (map renderReductionRule currentReductionRules)
 
 
 renderReductionRule reductionRule = ((makeAndRender.rule) reductionRule) ||| (text "->" <> rect 3 1) ||| ((makeAndRender.result) reductionRule) 
@@ -40,7 +44,7 @@ generateTreeDiagram name tree = fst(saveDiagram (renderStandardTree tree) name)
 generateReductionRuleDiagram name reductionRule = generate name (renderReductionRule reductionRule)
 generateAxiomDiagram name axiom = generate name (renderAxiom axiom)
 
-generateArgsDiagram name args = generate name (renderArgs args)
+generateStatusDiagram name status = generate name (renderStatus status)
 
 generate name renderer = fst(saveDiagram renderer name)
 

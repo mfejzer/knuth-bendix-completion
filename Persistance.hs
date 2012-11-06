@@ -17,44 +17,22 @@ import KnuthBendixCompletion.Algorithm (kb)
 deriveSafeCopy 0 'base ''Term
 deriveSafeCopy 0 'base ''ReductionRule
 deriveSafeCopy 0 'base ''Axiom
+deriveSafeCopy 0 'base ''AlgorithmStatus
 
-data ArgsState = ArgsState { args ::(Axioms,ReductionRules), nonOrientable::Maybe Axiom}
-	deriving (Eq, Ord, Read, Show, Data, Typeable)
-deriveSafeCopy 0 'base ''ArgsState
+initialAlgorithmStatus :: AlgorithmStatus
+initialAlgorithmStatus = CanProceed {axioms=groupAxioms,rules=[]}
 
-initialArgsState :: ArgsState
-initialArgsState = ArgsState (groupAxioms,[]) Nothing 
+peekAlgorithmStatus :: Query AlgorithmStatus AlgorithmStatus
+peekAlgorithmStatus = ask
 
-updateArgs :: (Axioms, ReductionRules) -> Update ArgsState (Axioms, ReductionRules)
-updateArgs newArgs =
-    do a@ArgsState{..} <- get
-       put $ a {args=newArgs,nonOrientable=Nothing}
-       return args
+updateAlgorithmStatusByKBC :: Update AlgorithmStatus AlgorithmStatus 
+updateAlgorithmStatusByKBC = 
+    do state <- get
+       case state of
+         (CanProceed _ _) -> do 
+           put (kb state)
+           return (kb state)
+         (Finished  _) -> return state
+         (FailedOn _ _ _) -> return state
 
-peekArgs :: Query ArgsState (Axioms,ReductionRules)
-peekArgs = args <$> ask
-
-updateArgsByKBC :: Update ArgsState (Axioms, ReductionRules)
-updateArgsByKBC = 
-    do a@ArgsState{..} <- get
-       let oldArgs = args
-       if nonOrientable == Nothing
-         then
-           case (kb args) of
-             (Left axiom) -> do 
-               put $ a {args=oldArgs,nonOrientable = Just axiom}
-               return args
-             (Right newArgs) -> do 
-               put $ a {args=newArgs,nonOrientable = Nothing} 
-               return newArgs
-         else
-           return args
-
-updateArgsToGroupAxioms :: Update ArgsState (Axioms, ReductionRules)
-updateArgsToGroupAxioms = 
-    do a@ArgsState{..} <- get
-       let newArgs = (groupAxioms,[])
-       put $ a {args=newArgs,nonOrientable=Nothing}
-       return newArgs
-
-$(makeAcidic ''ArgsState ['updateArgs,'updateArgsByKBC,'updateArgsToGroupAxioms,'peekArgs])
+$(makeAcidic ''AlgorithmStatus ['updateAlgorithmStatusByKBC,'peekAlgorithmStatus])

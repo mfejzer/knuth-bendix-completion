@@ -27,7 +27,7 @@ import Text.Blaze.Html4.Strict.Attributes as B hiding (dir, label, title)
 
 main :: IO ()
 main =
-    do bracket (openLocalState initialArgsState)
+    do bracket (openLocalState initialAlgorithmStatus)
                (createCheckpointAndClose)
                (\acid ->
                     simpleHTTP nullConf (handlers acid))
@@ -35,14 +35,14 @@ main =
 myPolicy :: BodyPolicy
 myPolicy = (defaultBodyPolicy "/tmp/" 0 1000 1000)
 
-handlers :: AcidState ArgsState -> ServerPart Response
+handlers :: AcidState AlgorithmStatus -> ServerPart Response
 handlers acid =
     do decodeBody myPolicy
        msum [dir "AddAxiom" $ dir "Form" $ addAxiomFormPart
             ,dir "AddAxiom" $ dir "Result" $ addAxiomResultPart acid
             ,dir "RunKBC" $ runKBC acid
-            , do args <- query' acid PeekArgs 
-                 showArgs args
+            , do status <- query' acid PeekAlgorithmStatus 
+                 showStatus status 
             ]
 
 
@@ -56,7 +56,7 @@ addAxiomFormPart = ok $ toResponse $
              B.label "Enter axiom: " >> input ! type_ "text" ! name "axiom" ! size "100"
              input ! type_ "submit" ! name "Enter"
 
-addAxiomResultPart :: AcidState ArgsState -> ServerPart Response
+addAxiomResultPart :: AcidState AlgorithmStatus -> ServerPart Response
 addAxiomResultPart acid =
 	do methodM POST 
 	   result <- getDataFn (look "axiom" `checkRq` (convertError.parseAxiom))
@@ -70,14 +70,14 @@ translateName name = name++".png"
 fileName = "tmp"
 
 
-runKBC:: AcidState ArgsState -> ServerPart Response
+runKBC:: AcidState AlgorithmStatus -> ServerPart Response
 runKBC acid =
-    do args <- update' acid (UpdateArgsByKBC)
-       showArgs args
+    do status <- update' acid (UpdateAlgorithmStatusByKBC)
+       showStatus status
 
 
-showArgs :: (Axioms,ReductionRules) -> ServerPart Response
-showArgs args =
-    do (liftIO $ (generateArgsDiagram (translateName fileName) args))
+showStatus :: AlgorithmStatus -> ServerPart Response
+showStatus status =
+    do (liftIO $ (generateStatusDiagram (translateName fileName) status))
        serveFile (asContentType "image/png") (translateName fileName)
 

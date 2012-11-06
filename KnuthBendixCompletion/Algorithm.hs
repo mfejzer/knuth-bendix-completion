@@ -2,31 +2,31 @@ module KnuthBendixCompletion.Algorithm where
 import KnuthBendixCompletion.Datatypes
 import Data.List (sort)
 
-kbc :: ([Axiom],[ReductionRule]) -> Either Axiom ([Axiom],[ReductionRule])
+kbc :: AlgorithmStatus -> AlgorithmStatus
 kbc args =
     case result of
-      (Left error) -> Left error
-      (Right newArgs) -> 
-        if newArgs == args 
-          then Right newArgs
-          else kbc newArgs
+      (CanProceed _ _) -> kbc result 
+      (Finished _) -> result
+      (FailedOn _ _ _) -> result
     where result = kb args
 
-kb :: ([Axiom],[ReductionRule]) -> Either Axiom ([Axiom],[ReductionRule])
-kb ([],rules) = Right ([],rules)
-kb (axioms,rules) = 
+kb :: AlgorithmStatus -> AlgorithmStatus
+kb CanProceed {axioms=currentAxioms,rules=currentRules} = 
       if compareTerms axiomLhs axiomRhs == EQ && (not $ checkLexEq axiomLhs axiomRhs)
-	then Left normalisedAxiom
+	then FailedOn {lastAxiom=normalisedAxiom,incompleteAxioms=currentAxioms,incompleteRules=currentRules}
 	else
-          if (compareTerms axiomLhs axiomRhs /= EQ) && (not $ elem rule rules)
-            then Right (superposeRules rule newRules restAxioms, newRules)
-            else Right (restAxioms,rules)
-      where (axiom,restAxioms) = takeAxiom axioms
-            normalisedAxiom = normaliseAxiom axiom rules
+          if (compareTerms axiomLhs axiomRhs /= EQ) && (not $ elem rule currentRules)
+            then CanProceed {axioms=(superposeRules rule newRules restAxioms),rules=newRules}
+            else 
+              if restAxioms == []
+                then Finished {finalRules=currentRules}
+                else CanProceed {axioms=restAxioms,rules=currentRules}
+      where (axiom,restAxioms) = takeAxiom currentAxioms
+            normalisedAxiom = normaliseAxiom axiom currentRules
             axiomLhs = lhs normalisedAxiom
             axiomRhs = rhs normalisedAxiom
             rule = renameVarsInReductionRuleWithPrefix "" (orderAxiom normalisedAxiom)
-            newRules = makeNewRules rule rules
+            newRules = makeNewRules rule currentRules
 
 
 --simple, todo: complicated

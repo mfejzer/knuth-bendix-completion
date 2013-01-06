@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP, DeriveDataTypeable, FlexibleContexts, GeneralizedNewtypeDeriving, 
-    MultiParamTypeClasses, TemplateHaskell, TypeFamilies, RecordWildCards #-}
+    MultiParamTypeClasses, TemplateHaskell, TypeFamilies, RecordWildCards,TypeSynonymInstances,FlexibleInstances #-}
 module Persistance where
+import Auth.Datatypes
 import Control.Applicative  ((<$>))
 import Control.Exception    (bracket)
 import Control.Monad        (msum)
@@ -14,13 +15,24 @@ import Data.SafeCopy (base, deriveSafeCopy)
 import KnuthBendixCompletion.Datatypes
 import KnuthBendixCompletion.Algorithm (kb)
 
+type AppStatus = AppStatusTemplate AlgorithmStatus
+
 deriveSafeCopy 0 'base ''Term
 deriveSafeCopy 0 'base ''ReductionRule
 deriveSafeCopy 0 'base ''Axiom
 deriveSafeCopy 0 'base ''AlgorithmStatus
+deriveSafeCopy 0 'base ''SessionHash
+deriveSafeCopy 0 'base ''User
+deriveSafeCopy 0 'base ''AppStatusTemplate
+deriveSafeCopy 0 'base ''LogInResult
+deriveSafeCopy 0 'base ''LogOutResult
+{-deriveSafeCopy 0 'base ''AppStatus-}
 
 initialAlgorithmStatus :: AlgorithmStatus
 initialAlgorithmStatus = CanProceed {axioms=groupAxioms,rules=[]}
+
+initialAppStatus:: AppStatus
+initialAppStatus = AppStatusTemplate ([User "admin" "pass" initialAlgorithmStatus Nothing])
 
 peekAlgorithmStatus :: Query AlgorithmStatus AlgorithmStatus
 peekAlgorithmStatus = ask
@@ -36,3 +48,23 @@ updateAlgorithmStatusByKBC =
          (FailedOn _ _ _) -> return state
 
 $(makeAcidic ''AlgorithmStatus ['updateAlgorithmStatusByKBC,'peekAlgorithmStatus])
+
+logInUser :: Login -> Password -> SessionHash -> Update AppStatus LogInResult
+logInUser l p s =
+    do state <- get
+       let (result,newState) = logIn state l p s
+       put newState
+       return result
+       
+logOutUser :: SessionHash -> Update AppStatus LogOutResult
+logOutUser s =
+    do state <-get
+       let (result,newState) = logOut state s
+       put newState
+       return result
+
+peekAppStatus :: Query AppStatus AppStatus
+peekAppStatus = ask
+
+
+$(makeAcidic ''AppStatus ['logInUser,'logOutUser,'peekAppStatus])

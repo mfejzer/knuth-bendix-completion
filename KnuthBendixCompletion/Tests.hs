@@ -72,7 +72,7 @@ strangeAxioms =
             Axiom (Func "*" [Func "*" [Var "x",Var "y"],Var "z"],Func "*" [Var "x",Func "*" [Var "y",Var "z"]])] 
 
 
-rules = [r1,r2,r3,r4]
+correctRules = [r1,r2,r3,r4]
 r1 =  ReductionRule {rule=Func "+" [Func "0" [],Var "x"],result=Var "x"}
 r2 =  ReductionRule {rule=Func "+" [Func "-" [Var "x"],Var "x"],result=Func "0" []}
 r3 =  ReductionRule {rule=Func "+" [Func "+" [Var "x",Var "y"],Var "z"],result=Func "+" [Var "x",Func "+" [Var "y",Var "z"]]}

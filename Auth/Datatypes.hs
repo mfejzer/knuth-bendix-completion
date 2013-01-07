@@ -19,6 +19,9 @@ data AppStatusTemplate t = AppStatusTemplate {users::[User t]}
 data LogInResult = SuccesfulLogIn SessionHash | NoSuchUser | WrongPassword 
     deriving (Eq, Ord, Read, Show, Data, Typeable)
 
+data CheckHashResult = UserIsLogged | UserIsNotLogged
+    deriving (Eq, Ord, Read, Show, Data, Typeable)
+
 data LogOutResult = SuccesfulLogOut | NoSuchSessionHash 
     deriving (Eq, Ord, Read, Show, Data, Typeable)
 
@@ -36,15 +39,25 @@ logIn appStatus l p s =
     restUsers = filter (\u -> login u /= l) (users appStatus)
     newSessionHash = s
 
+checkHash ::Eq t=> AppStatusTemplate t -> SessionHash -> CheckHashResult
+checkHash appStatus sh = 
+    if matchingUsers == []
+      then UserIsNotLogged
+      else UserIsLogged
+    where 
+    matchingUsers = filter (\u -> session u == Just sh) (users appStatus)
+    matchingUser = head matchingUsers
+
+
 logOut ::Eq t=> AppStatusTemplate t -> SessionHash -> (LogOutResult, AppStatusTemplate t)
-logOut appStatus s = 
+logOut appStatus sh = 
     if matchingUsers == []
       then (NoSuchSessionHash,appStatus)
       else (SuccesfulLogOut, AppStatusTemplate {users=restUsers++[matchingUser {session=newSessionHash}]})
     where 
-    matchingUsers = filter (\u -> session u == Just s) (users appStatus)
+    matchingUsers = filter (\u -> session u == Just sh) (users appStatus)
     matchingUser = head matchingUsers
-    restUsers = filter (\u -> session u /= Just s) (users appStatus)
+    restUsers = filter (\u -> session u /= Just sh) (users appStatus)
     newSessionHash = Nothing
 
 

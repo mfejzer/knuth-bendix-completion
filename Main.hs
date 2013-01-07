@@ -120,7 +120,7 @@ deauthenticate acid =
 listUsers :: AcidState AppStatus -> ServerPart Response
 listUsers acid = 
     do status <- query' acid PeekAppStatus
-       ok $ toResponse $ "peeked at the count and saw: " ++ show (map (\u -> (login u, password u,session u)) (users status))
+       ok $ toResponse $ "peeked and saw: " ++ show (map (\u -> (login u, password u,session u)) (users status))
 
 addAxiomFormPart :: ServerPart Response
 addAxiomFormPart = ok $ toResponse $

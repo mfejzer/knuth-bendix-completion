@@ -25,6 +25,7 @@ deriveSafeCopy 0 'base ''SessionHash
 deriveSafeCopy 0 'base ''User
 deriveSafeCopy 0 'base ''AppStatusTemplate
 deriveSafeCopy 0 'base ''LogInResult
+deriveSafeCopy 0 'base ''CheckHashResult
 deriveSafeCopy 0 'base ''LogOutResult
 {-deriveSafeCopy 0 'base ''AppStatus-}
 
@@ -50,16 +51,19 @@ updateAlgorithmStatusByKBC =
 $(makeAcidic ''AlgorithmStatus ['updateAlgorithmStatusByKBC,'peekAlgorithmStatus])
 
 logInUser :: Login -> Password -> SessionHash -> Update AppStatus LogInResult
-logInUser l p s =
+logInUser l p sh =
     do state <- get
-       let (result,newState) = logIn state l p s
+       let (result,newState) = logIn state l p sh
        put newState
        return result
        
+checkHashUser :: SessionHash -> Query AppStatus CheckHashResult
+checkHashUser sh = (\state -> checkHash state sh) <$> ask
+
 logOutUser :: SessionHash -> Update AppStatus LogOutResult
-logOutUser s =
-    do state <-get
-       let (result,newState) = logOut state s
+logOutUser sh =
+    do state <- get
+       let (result,newState) = logOut state sh
        put newState
        return result
 

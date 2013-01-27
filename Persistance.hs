@@ -35,20 +35,8 @@ initialAlgorithmStatus = CanProceed {axioms=groupAxioms,rules=[]}
 initialAppStatus:: AppStatus
 initialAppStatus = AppStatusTemplate ([User "admin" "pass" initialAlgorithmStatus Nothing])
 
-peekAlgorithmStatus :: Query AlgorithmStatus AlgorithmStatus
-peekAlgorithmStatus = ask
 
-updateAlgorithmStatusByKBC :: Update AlgorithmStatus AlgorithmStatus 
-updateAlgorithmStatusByKBC = 
-    do state <- get
-       case state of
-         (CanProceed _ _) -> do 
-           put (kb state)
-           return (kb state)
-         (Finished  _) -> return state
-         (FailedOn _ _ _) -> return state
-
-$(makeAcidic ''AlgorithmStatus ['updateAlgorithmStatusByKBC,'peekAlgorithmStatus])
+$(makeAcidic ''AlgorithmStatus [])
 
 logInUser :: Login -> Password -> SessionHash -> Update AppStatus LogInResult
 logInUser l p sh =
@@ -70,5 +58,77 @@ logOutUser sh =
 peekAppStatus :: Query AppStatus AppStatus
 peekAppStatus = ask
 
+updateAlgorithmStatus :: SessionHash -> (AlgorithmStatus -> AlgorithmStatus) -> Update AppStatus (Maybe AlgorithmStatus)
+updateAlgorithmStatus sh f = 
+    do state <- get
+       let (result,newState) = updateUserContent state f sh
+       put newState
+       return result
 
-$(makeAcidic ''AppStatus ['logInUser,'logOutUser,'peekAppStatus])
+updateAlgorithmStatusByKBC :: SessionHash -> Update AppStatus (Maybe AlgorithmStatus)
+updateAlgorithmStatusByKBC sh = updateAlgorithmStatus sh rkbc
+    where
+    rkbc :: AlgorithmStatus -> AlgorithmStatus
+    rkbc status =
+       case status of
+         (CanProceed _ _) -> kb status
+         (Finished  _) -> status
+         (FailedOn _ _ _) -> status
+
+updateAlgorithmStatusByAddingAxiom :: SessionHash -> Axiom -> Update AppStatus (Maybe AlgorithmStatus)
+updateAlgorithmStatusByAddingAxiom sh axiom = updateAlgorithmStatus sh (addAxiom axiom)
+    where
+    addAxiom :: Axiom -> AlgorithmStatus -> AlgorithmStatus
+    addAxiom axiom status =
+      case status of
+         (CanProceed a r) -> (CanProceed (a++[axiom]) r)
+         (Finished  _) -> status
+         (FailedOn _ _ _) -> status
+
+updateAlgorithmStatusByAddingRule :: SessionHash -> ReductionRule -> Update AppStatus (Maybe AlgorithmStatus)
+updateAlgorithmStatusByAddingRule sh rule = updateAlgorithmStatus sh (addRule rule)
+    where
+    addRule :: ReductionRule -> AlgorithmStatus -> AlgorithmStatus
+    addRule rule status =
+      case status of
+         (CanProceed a r) -> (CanProceed a (r++[rule]))
+         (Finished  _) -> status
+         (FailedOn _ _ _) -> status
+
+updateAlgorithmStatusByRemovingAxioms :: SessionHash -> Update AppStatus (Maybe AlgorithmStatus)
+updateAlgorithmStatusByRemovingAxioms sh = updateAlgorithmStatus sh removeAxioms
+    where
+    removeAxioms:: AlgorithmStatus -> AlgorithmStatus
+    removeAxioms status =
+      case status of
+         (CanProceed a r) -> (CanProceed [] r)
+         (Finished  _) -> status
+         (FailedOn _ _ _) -> status
+
+updateAlgorithmStatusByRemovingRules :: SessionHash -> Update AppStatus (Maybe AlgorithmStatus)
+updateAlgorithmStatusByRemovingRules sh = updateAlgorithmStatus sh removeRules
+    where
+    removeRules :: AlgorithmStatus -> AlgorithmStatus
+    removeRules status =
+      case status of
+         (CanProceed a r) -> (CanProceed a [])
+         (Finished  _) -> status
+         (FailedOn _ _ _) -> status
+
+updateAlgorithmStatusByDefaultReset :: SessionHash -> Update AppStatus (Maybe AlgorithmStatus)
+updateAlgorithmStatusByDefaultReset sh = updateAlgorithmStatus sh setDefault
+    where
+    setDefault :: AlgorithmStatus -> AlgorithmStatus
+    setDefault _ = initialAlgorithmStatus
+
+
+$(makeAcidic ''AppStatus ['logInUser
+                          ,'logOutUser
+                          ,'peekAppStatus
+                          ,'updateAlgorithmStatusByKBC
+                          ,'updateAlgorithmStatusByAddingRule 
+                          ,'updateAlgorithmStatusByAddingAxiom 
+                          ,'updateAlgorithmStatusByRemovingRules
+                          ,'updateAlgorithmStatusByRemovingAxioms
+                          ,'updateAlgorithmStatusByDefaultReset 
+                          ,'checkHashUser])

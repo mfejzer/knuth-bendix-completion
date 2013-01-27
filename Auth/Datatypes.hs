@@ -60,4 +60,14 @@ logOut appStatus sh =
     restUsers = filter (\u -> session u /= Just sh) (users appStatus)
     newSessionHash = Nothing
 
+updateUserContent :: Eq t => AppStatusTemplate t -> (t->t) -> SessionHash -> (Maybe t,AppStatusTemplate t)
+updateUserContent appStatus f sh =
+   if matchingUsers == []
+      then (Nothing,appStatus)
+      else (Just newUserContent,AppStatusTemplate {users=restUsers++[matchingUser {userContent=newUserContent}]})
+    where 
+    matchingUsers = filter (\u -> session u == Just sh) (users appStatus)
+    matchingUser = head matchingUsers
+    restUsers = filter (\u -> session u /= Just sh) (users appStatus)
+    newUserContent = f (userContent matchingUser)
 

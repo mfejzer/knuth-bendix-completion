@@ -1,0 +1,18 @@
+name:                kbc
+version:             0.1.0.0
+synopsis:            Knuth Bendix completion algorithm wrapped in web server
+-- description:         
+license:             BSD3
+license-file:        LICENSE
+author:              Mikołaj Fejzer
+maintainer:          mfejzer@gmail.com
+-- copyright:           
+-- category:            
+build-type:          Simple
+cabal-version:       >=1.8
+
+executable kbc
+  Main-is:           Main.hs
+  -- main-is:             
+  -- other-modules:       
+  build-depends:       base ==4.5.*, mtl ==2.0.*, acid-state ==0.6.*, safecopy ==0.6.*, containers ==0.4.*, happstack-server ==7.0.*, blaze-markup ==0.5.*, blaze-html ==0.5.*, random ==1.0.*, parsec ==3.1.*, diagrams-lib ==0.5.*, diagrams-contrib ==0.1.*, diagrams-cairo ==0.5.*, diagrams-core ==0.5.*

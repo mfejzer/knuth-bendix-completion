@@ -1,5 +1,5 @@
 {-# LANGUAGE NoMonomorphismRestriction, OverloadedStrings,CPP, DeriveDataTypeable, FlexibleContexts, GeneralizedNewtypeDeriving, 
-    MultiParamTypeClasses, TemplateHaskell, TypeFamilies, RecordWildCards  #-}
+    MultiParamTypeClasses, ScopedTypeVariables, TemplateHaskell, TypeFamilies, RecordWildCards  #-}
 module Main where 
 import Auth.Datatypes
 import Control.Exception    ( bracket )

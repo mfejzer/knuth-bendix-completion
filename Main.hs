@@ -3,7 +3,7 @@
 module Main where 
 import Auth.Datatypes
 import Control.Exception    ( bracket )
-import Control.Monad (msum)
+import Control.Monad (msum,mapM_,forM_,forM)
 import Control.Monad.Trans (lift, liftIO)
 import Data.Acid            ( AcidState, Query, Update, openLocalState )
 import Data.Acid.Advanced   ( query', update' )
@@ -11,12 +11,11 @@ import Data.Acid.Local      ( createCheckpointAndClose )
 import Data.SafeCopy        ( base, deriveSafeCopy )
 import Data.Tree
 import DiagramWrapper
-{-import Graphics.Rendering.Diagrams.Core -}
 import Happstack.Server (addCookie, asContentType, BodyPolicy(..)
-			, CookieLife(Session), decodeBody
-			, defaultBodyPolicy, dir, expireCookie
+			, Browsing(EnableBrowsing), CookieLife(Session)
+                        , decodeBody, defaultBodyPolicy, dir, expireCookie
 			, Method(POST), methodM, mkCookie, nullConf
-			, ok, readCookieValue, Response, serveFile
+			, ok, readCookieValue, Response, serveDirectory
 			, ServerPart, simpleHTTP, toResponse)
 import Happstack.Server.RqData (RqData, checkRq, getDataFn, look, lookRead) 
 import KnuthBendixCompletion.Algorithm
@@ -50,6 +49,7 @@ handlers acid =
             ,dir "logout" $ logOutUserResultPart 
             ,dir "app" $ dispatchPostCommand acid
             ,dir "list" $ listUsers acid
+            ,dir "img" $ serveDirectory EnableBrowsing [] "img"
             ]
 
 
@@ -81,45 +81,7 @@ menuResultPart = ok $ toResponse $
      B.head $ do
         title "Menu"
      B.body $ do
-        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
-             input ! type_ "hidden" ! name "command" ! value (B.toValue (show RunAlgorithm))
-             input ! type_ "submit" ! name "RunAlgorithm" ! value "Run Algorithm"
-        br
-        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
-             B.label "Enter axiom: " >> input ! type_ "text" ! name "axiom" ! size "100"
-             input ! type_ "hidden" ! name "command" ! value (B.toValue (show AddAxiom))
-             input ! type_ "submit" ! name "AddAxiom" ! value "Add Axiom"
-        br
-        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
-             B.label "Enter reduction rule: " >> input ! type_ "text" ! name "rule" ! size "100"
-             input ! type_ "hidden" ! name "command" ! value (B.toValue (show AddRule))
-             input ! type_ "submit" ! name "AddRule" ! value "Add Reduction Rule"
-        br
-        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
-             input ! type_ "hidden" ! name "command" ! value (B.toValue (show RemoveAxiom))
-             input ! type_ "submit" ! name "RemoveAxiom" ! value "Remove Axiom"
-        br
-        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
-             input ! type_ "hidden" ! name "command" ! value (B.toValue (show RemoveRule))
-             input ! type_ "submit" ! name "RemoveRule" ! value "Remove Rule"
-        br
-        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
-             input ! type_ "hidden" ! name "command" ! value (B.toValue (show RemoveAllAxioms))
-             input ! type_ "submit" ! name "RemoveAllAxioms" ! value "Remove All Axioms"
-        br
-        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
-             input ! type_ "hidden" ! name "command" ! value (B.toValue (show RemoveAllRules))
-             input ! type_ "submit" ! name "RemoveAllRules" ! value "Remove All Rules"
-        br
-        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
-             input ! type_ "hidden" ! name "command" ! value (B.toValue (show Reset))
-             input ! type_ "submit" ! name "Reset" ! value "Remove Reset"
-        br
-        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
-             input ! type_ "hidden" ! name "command" ! value (B.toValue (show LogOut))
-             input ! type_ "submit" ! name "LogOut" ! value "Log Out"
-        br
- 
+        menu
 
 dispatchPostCommand :: AcidState AppStatus -> ServerPart Response
 dispatchPostCommand acid = 
@@ -218,31 +180,93 @@ listUsers acid =
     do status <- query' acid PeekAppStatus
        ok $ toResponse $ "peeked and saw: " ++ show (map (\u -> (login u, password u,session u)) (users status))
 
-addAxiomFormPart :: ServerPart Response
-addAxiomFormPart = ok $ toResponse $
-    html $ do
-      B.head $ do
-        title "Add Axiom"
-      B.body $ do
-	form ! enctype "multipart/form-data" ! B.method "POST" ! action "/AddAxiom/Result" $ do
-             B.label "Enter axiom: " >> input ! type_ "text" ! name "axiom" ! size "100"
-             input ! type_ "submit" ! name "Enter"
-
-addAxiomResultPart :: AcidState AlgorithmStatus -> ServerPart Response
-addAxiomResultPart acid =
-	do methodM POST 
-	   result <- getDataFn (look "axiom" `checkRq` (convertError.parseAxiom))
-	   case result of
-			(Left error) -> (ok $ toResponse $ (show error))
-			(Right axiom) -> do (liftIO $ (generateAxiomDiagram (translateName fileName) axiom))
-					    serveFile (asContentType "image/png") (translateName fileName)
 translateName :: String -> String
-translateName name = name++".png"
-
-fileName = "tmp"
+translateName name = "img/"++name++".png"
 
 showStatus :: AlgorithmStatus -> ServerPart Response
-showStatus status =
-    do (liftIO $ (generateStatusDiagram (translateName fileName) status))
-       serveFile (asContentType "image/png") (translateName fileName)
+showStatus (CanProceed as rs) =
+    do axiomsFilenames <- mapM generateAxiomAsImage (numberize as)
+       rulesFilenames <- mapM generateRuleAsImage (numberize rs)
+       canProceedTemplate axiomsFilenames rulesFilenames
+    
+
+numberize xs = n xs 0
+    where
+    n [] _ = []
+    n (x:xs) acc = (x,acc): n xs (acc+1)
+
+canProceedTemplate :: [(String,Integer)] -> [(String,Integer)] ->  ServerPart Response
+canProceedTemplate axiomsFilenames rulesFilenames = ok $ toResponse $
+    html $ do
+      B.head $ do
+        title "Algorithm Status"
+      B.body $ do 
+          ul $ forM_ axiomsFilenames (htmlize RemoveAxiom)
+          ul $ forM_ rulesFilenames (htmlize RemoveRule)
+          menu
+
+htmlize removeCommand (filename,index) = 
+    do li $ form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
+             img ! src (B.toValue filename)
+             input ! type_ "hidden" ! name "command" ! value (B.toValue (show removeCommand))
+             input ! type_ "hidden" ! name "index" ! value (B.toValue (show index))
+             input ! type_ "submit" ! name "Remove" ! value "Remove"
+       br
+
+
+menu=do form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
+             input ! type_ "hidden" ! name "command" ! value (B.toValue (show RunAlgorithm))
+             input ! type_ "submit" ! name "RunAlgorithm" ! value "Run Algorithm"
+        br
+        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
+             B.label "Enter axiom: " >> input ! type_ "text" ! name "axiom" ! size "100"
+             input ! type_ "hidden" ! name "command" ! value (B.toValue (show AddAxiom))
+             input ! type_ "submit" ! name "AddAxiom" ! value "Add Axiom"
+        br
+        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
+             B.label "Enter reduction rule: " >> input ! type_ "text" ! name "rule" ! size "100"
+             input ! type_ "hidden" ! name "command" ! value (B.toValue (show AddRule))
+             input ! type_ "submit" ! name "AddRule" ! value "Add Reduction Rule"
+        br
+        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
+             input ! type_ "hidden" ! name "command" ! value (B.toValue (show RemoveAxiom))
+             input ! type_ "submit" ! name "RemoveAxiom" ! value "Remove Axiom"
+        br
+        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
+             input ! type_ "hidden" ! name "command" ! value (B.toValue (show RemoveRule))
+             input ! type_ "submit" ! name "RemoveRule" ! value "Remove Rule"
+        br
+        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
+             input ! type_ "hidden" ! name "command" ! value (B.toValue (show RemoveAllAxioms))
+             input ! type_ "submit" ! name "RemoveAllAxioms" ! value "Remove All Axioms"
+        br
+        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
+             input ! type_ "hidden" ! name "command" ! value (B.toValue (show RemoveAllRules))
+             input ! type_ "submit" ! name "RemoveAllRules" ! value "Remove All Rules"
+        br
+        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
+             input ! type_ "hidden" ! name "command" ! value (B.toValue (show Reset))
+             input ! type_ "submit" ! name "Reset" ! value "Remove Reset"
+        br
+        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
+             input ! type_ "hidden" ! name "command" ! value (B.toValue (show LogOut))
+             input ! type_ "submit" ! name "LogOut" ! value "Log Out"
+        br
+ 
+
+randomFilename =
+    do x <- liftIO (getStdRandom (randomR (1,65536)))
+       let filename = (translateName (show (x::Integer)))
+       return filename 
+
+generateAxiomAsImage (axiom,index) =
+    do filename <- randomFilename
+       liftIO $ (generateAxiomDiagram filename axiom)
+       return $ (filename,index)
+       
+
+generateRuleAsImage (rule,index) =
+    do filename <- randomFilename
+       liftIO $ generateReductionRuleDiagram filename rule
+       return $ (filename,index)
 

@@ -1,7 +1,7 @@
 {-# LANGUAGE NoMonomorphismRestriction, OverloadedStrings,CPP, DeriveDataTypeable, FlexibleContexts, GeneralizedNewtypeDeriving, 
     MultiParamTypeClasses #-}
 
-module Auth.Datatypes where
+module Auth where
 import Data.Data (Data, Typeable)
 
 type Login = String

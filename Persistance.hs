@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP, DeriveDataTypeable, FlexibleContexts, GeneralizedNewtypeDeriving, 
     MultiParamTypeClasses, TemplateHaskell, TypeFamilies, RecordWildCards,TypeSynonymInstances,FlexibleInstances #-}
 module Persistance where
-import Auth.Datatypes
+import Auth
 import Control.Applicative  ((<$>))
 import Control.Exception    (bracket)
 import Control.Monad        (msum)

@@ -1,7 +1,8 @@
 {-# LANGUAGE NoMonomorphismRestriction, OverloadedStrings,CPP, DeriveDataTypeable, FlexibleContexts, GeneralizedNewtypeDeriving, 
     MultiParamTypeClasses, ScopedTypeVariables, TemplateHaskell, TypeFamilies, RecordWildCards  #-}
 module Main where 
-import Auth.Datatypes
+import Auth
+import Commands
 import Control.Exception    ( bracket )
 import Control.Monad (msum,mapM_,forM_,forM)
 import Control.Monad.Trans (lift, liftIO)
@@ -24,13 +25,11 @@ import KnuthBendixCompletion.Tests
 import Parser
 import ParserTests
 import Persistance
+import ResponseTemplates
 import Text.Blaze			as B
 import Text.Blaze.Html4.Strict		as B hiding (map)
 import Text.Blaze.Html4.Strict.Attributes as B hiding (dir, label, title)
 import System.Random
-
-data Command = LogIn | LogOut | RunAlgorithm | AddAxiom | AddRule | RemoveAxiom | RemoveAllAxioms | RemoveRule | RemoveAllRules | Reset
-    deriving (Eq, Ord, Read, Show)
 
 main :: IO ()
 main =
@@ -53,35 +52,6 @@ handlers acid =
             ]
 
 
-logInUserResultPart :: ServerPart Response
-logInUserResultPart = ok $ toResponse $
-    html $ do
-      B.head $ do
-        title "Login Form"
-      B.body $ do
-        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
-             B.label "login: " >> input ! type_ "text" ! name "login" ! size "10"
-             B.label "password: " >> input ! type_ "text" ! name "password" ! size "10"
-             input ! type_ "hidden" ! name "command" ! value (B.toValue (show LogIn))
-             input ! type_ "submit" ! name "log in"
-
-logOutUserResultPart :: ServerPart Response
-logOutUserResultPart = ok $ toResponse $
-    html $ do
-      B.head $ do
-        title "Logout Form"
-      B.body $ do
-        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
-             input ! type_ "hidden" ! name "command" ! value (B.toValue (show LogOut))
-             input ! type_ "submit" ! name "log in"
-
-menuResultPart :: ServerPart Response
-menuResultPart = ok $ toResponse $
-    html $ do
-     B.head $ do
-        title "Menu"
-     B.body $ do
-        menu
 
 dispatchPostCommand :: AcidState AppStatus -> ServerPart Response
 dispatchPostCommand acid = 
@@ -148,7 +118,6 @@ generateResult acid c sh =
                       Nothing -> ok $ toResponse (show "Nothing")
 
 
-
 authenticate :: AcidState AppStatus -> ServerPart Response
 authenticate acid =
      do methodM POST
@@ -188,71 +157,21 @@ showStatus (CanProceed as rs) =
     do axiomsFilenames <- mapM generateAxiomAsImage (numberize as)
        rulesFilenames <- mapM generateRuleAsImage (numberize rs)
        canProceedTemplate axiomsFilenames rulesFilenames
-    
+showStatus (Finished rs) =
+    do rulesFilenames <- mapM generateRuleAsImage (numberize rs)
+       finishedTemplate rulesFilenames 
+showStatus (FailedOn failedAxiom as rs)=
+    do failedAxiomFile <- generateAxiomAsImage (failedAxiom,0)
+       axiomsFilenames <- mapM generateAxiomAsImage (numberize as)
+       rulesFilenames <- mapM generateRuleAsImage (numberize rs)
+       failedOnTemplate failedAxiomFile axiomsFilenames rulesFilenames
 
 numberize xs = n xs 0
     where
     n [] _ = []
     n (x:xs) acc = (x,acc): n xs (acc+1)
 
-canProceedTemplate :: [(String,Integer)] -> [(String,Integer)] ->  ServerPart Response
-canProceedTemplate axiomsFilenames rulesFilenames = ok $ toResponse $
-    html $ do
-      B.head $ do
-        title "Algorithm Status"
-      B.body $ do 
-          ul $ forM_ axiomsFilenames (htmlize RemoveAxiom)
-          ul $ forM_ rulesFilenames (htmlize RemoveRule)
-          menu
 
-htmlize removeCommand (filename,index) = 
-    do li $ form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
-             img ! src (B.toValue filename)
-             input ! type_ "hidden" ! name "command" ! value (B.toValue (show removeCommand))
-             input ! type_ "hidden" ! name "index" ! value (B.toValue (show index))
-             input ! type_ "submit" ! name "Remove" ! value "Remove"
-       br
-
-
-menu=do form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
-             input ! type_ "hidden" ! name "command" ! value (B.toValue (show RunAlgorithm))
-             input ! type_ "submit" ! name "RunAlgorithm" ! value "Run Algorithm"
-        br
-        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
-             B.label "Enter axiom: " >> input ! type_ "text" ! name "axiom" ! size "100"
-             input ! type_ "hidden" ! name "command" ! value (B.toValue (show AddAxiom))
-             input ! type_ "submit" ! name "AddAxiom" ! value "Add Axiom"
-        br
-        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
-             B.label "Enter reduction rule: " >> input ! type_ "text" ! name "rule" ! size "100"
-             input ! type_ "hidden" ! name "command" ! value (B.toValue (show AddRule))
-             input ! type_ "submit" ! name "AddRule" ! value "Add Reduction Rule"
-        br
-        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
-             input ! type_ "hidden" ! name "command" ! value (B.toValue (show RemoveAxiom))
-             input ! type_ "submit" ! name "RemoveAxiom" ! value "Remove Axiom"
-        br
-        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
-             input ! type_ "hidden" ! name "command" ! value (B.toValue (show RemoveRule))
-             input ! type_ "submit" ! name "RemoveRule" ! value "Remove Rule"
-        br
-        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
-             input ! type_ "hidden" ! name "command" ! value (B.toValue (show RemoveAllAxioms))
-             input ! type_ "submit" ! name "RemoveAllAxioms" ! value "Remove All Axioms"
-        br
-        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
-             input ! type_ "hidden" ! name "command" ! value (B.toValue (show RemoveAllRules))
-             input ! type_ "submit" ! name "RemoveAllRules" ! value "Remove All Rules"
-        br
-        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
-             input ! type_ "hidden" ! name "command" ! value (B.toValue (show Reset))
-             input ! type_ "submit" ! name "Reset" ! value "Remove Reset"
-        br
-        form ! enctype "multipart/form-data" ! B.method "POST" ! action "/app" $ do
-             input ! type_ "hidden" ! name "command" ! value (B.toValue (show LogOut))
-             input ! type_ "submit" ! name "LogOut" ! value "Log Out"
-        br
- 
 
 randomFilename =
     do x <- liftIO (getStdRandom (randomR (1,65536)))

@@ -85,6 +85,28 @@ updateAlgorithmStatusByAddingAxiom sh axiom = updateAlgorithmStatus sh (addAxiom
          (Finished  _) -> status
          (FailedOn _ _ _) -> status
 
+updateAlgorithmStatusByRemovingAxiom :: SessionHash -> Integer -> Update AppStatus (Maybe AlgorithmStatus)
+updateAlgorithmStatusByRemovingAxiom sh axiomIndex = updateAlgorithmStatus sh (rmAxiom axiomIndex)
+    where
+    rmAxiom :: Integer -> AlgorithmStatus -> AlgorithmStatus
+    rmAxiom axiomIndex status =
+      case status of
+         (CanProceed a r) -> (CanProceed (removeNth axiomIndex a) r)
+         (Finished  _) -> status
+         (FailedOn _ _ _) -> status
+
+updateAlgorithmStatusByRemovingRule :: SessionHash -> Integer -> Update AppStatus (Maybe AlgorithmStatus)
+updateAlgorithmStatusByRemovingRule sh ruleIndex = updateAlgorithmStatus sh (rmRule ruleIndex)
+    where
+    rmRule :: Integer -> AlgorithmStatus -> AlgorithmStatus
+    rmRule ruleIndex status =
+      case status of
+         (CanProceed a r) -> (CanProceed a (removeNth ruleIndex r))
+         (Finished  _) -> status
+         (FailedOn _ _ _) -> status
+
+removeNth index xs = map fst (filter (\(_,i)-> i /= index) (zip xs [0..]))
+
 updateAlgorithmStatusByAddingRule :: SessionHash -> ReductionRule -> Update AppStatus (Maybe AlgorithmStatus)
 updateAlgorithmStatusByAddingRule sh rule = updateAlgorithmStatus sh (addRule rule)
     where
@@ -127,7 +149,9 @@ $(makeAcidic ''AppStatus ['logInUser
                           ,'peekAppStatus
                           ,'updateAlgorithmStatusByKBC
                           ,'updateAlgorithmStatusByAddingRule 
-                          ,'updateAlgorithmStatusByAddingAxiom 
+                          ,'updateAlgorithmStatusByAddingAxiom
+                          ,'updateAlgorithmStatusByRemovingRule  
+                          ,'updateAlgorithmStatusByRemovingAxiom  
                           ,'updateAlgorithmStatusByRemovingRules
                           ,'updateAlgorithmStatusByRemovingAxioms
                           ,'updateAlgorithmStatusByDefaultReset 

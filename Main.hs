@@ -102,8 +102,20 @@ generateResult acid c sh =
                                              case result of
                                                Just r -> showStatus r
                                                Nothing -> ok $ toResponse (show "Nothing")
-      RemoveRule ->  do ok $ toResponse (show "To implement")
-      RemoveAxiom -> do ok $ toResponse (show "To implement")
+      RemoveRule ->  do postedIndex <- getDataFn (lookRead "index")
+                        case postedIndex of
+                             (Left error) -> (ok $ toResponse $ (show error))
+                             (Right index) -> do result <- update' acid (UpdateAlgorithmStatusByRemovingRule sh index)
+                                                 case result of
+                                                      Just r -> showStatus r
+                                                      Nothing -> ok $ toResponse (show "Nothing")
+      RemoveAxiom -> do postedIndex <- getDataFn (lookRead "index")
+                        case postedIndex of
+                             (Left error) -> (ok $ toResponse $ (show error))
+                             (Right index) -> do result <- update' acid (UpdateAlgorithmStatusByRemovingAxiom sh index)
+                                                 case result of
+                                                      Just r -> showStatus r
+                                                      Nothing -> ok $ toResponse (show "Nothing")
       RemoveAllAxioms ->do result <- update' acid (UpdateAlgorithmStatusByRemovingAxioms sh)
                            case result of
                              Just r -> showStatus r
